@@ -244,6 +244,9 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             results.auclaire.status = 'error';
             results.auclaire.errorMsg = typeof e === 'object' ? JSON.stringify(e, null, 2) : String(e);
         }
+    } else {
+        results.auclaire.status = 'error';
+        results.auclaire.errorMsg = `Configuration Error: AUCLAIRE_SUPABASE_URL or Key is missing.`;
     }
 
     // 2. Fetch Defcon (Turso)
@@ -314,6 +317,9 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             results.defcon.status = 'error';
             results.defcon.errorMsg = String(e.message || e);
         }
+    } else {
+        results.defcon.status = 'error';
+        results.defcon.errorMsg = `Configuration Error: DEFCON_TURSO_URL or Token is missing.`;
     }
 
     // 3. Fetch Antigravity (MongoDB)
@@ -429,6 +435,9 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             results.antigravity.status = 'error';
             results.antigravity.errorMsg = String(e.message || e);
         }
+    } else {
+        results.antigravity.status = 'error';
+        results.antigravity.errorMsg = `Configuration Error: ANTIGRAVITY_MONGODB_URI is missing.`;
     }
 
 path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
@@ -500,6 +509,9 @@ path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
             results.drs.status = 'error';
             results.drs.errorMsg = `Could not connect to DRS Supabase: ${e.message}`;
         }
+    } else {
+        results.drs.status = 'error';
+        results.drs.errorMsg = `Configuration Error: DRS_SUPABASE_URL or Key is missing.`;
     }
 
     return results;
