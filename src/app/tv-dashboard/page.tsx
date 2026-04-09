@@ -135,8 +135,18 @@ export default function TvDashboardPage() {
             whiteSpace: 'nowrap',
             overflow: 'hidden'
           }}>
-            <div className="animate-[ticker_35s_linear_infinite] custom-ticker">
-               • NEW CONTRACT SIGNED ON AUCLAIRE (DRS LLC) • MALORIE C. COMPLETED A DESIGN TASK • INVOICE #9822 PAID • SARAH K. UPDATED PROJECT PHOENIX • MEGAN J. ADDED NEW CLIENT (VEGAS) • {mounted ? time : '--:--'} •
+            <div className="animate-[ticker_60s_linear_infinite] custom-ticker flex items-center gap-8">
+               {data?.tasks?.slice(0, 10).map((task: any, idx: number) => (
+                   <span key={task.id}>
+                    • {task.appName.toUpperCase()}: {task.title.toUpperCase()} • {task.status.toUpperCase()} 
+                   </span>
+               ))}
+               {data?.stats && Object.values(data.stats as Record<string, any>).map((app: any) => (
+                   <span key={app.name}>
+                    • {app.name.toUpperCase()} REVENUE: ${app.financials?.collected?.toLocaleString()} •
+                   </span>
+               ))}
+               • EMPIRE ENGINE ONLINE • {mounted ? time : '--:--'} •
             </div>
           </div>
         </footer>
