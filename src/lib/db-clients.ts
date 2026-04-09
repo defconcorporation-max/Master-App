@@ -13,20 +13,20 @@ const GLOBAL_STATS_CACHE_TTL_MS = (typeof process !== 'undefined' && process.env
 let globalStatsCache: { data: Awaited<ReturnType<typeof fetchGlobalStatsUncached>>; expires: number } | null = null;
 
 // --- Auclaire (Supabase) ---
-const supabaseUrl = process.env.AUCLAIRE_SUPABASE_URL || '';
-const rawRoleKey = process.env.AUCLAIRE_SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseUrl = (process.env.AUCLAIRE_SUPABASE_URL || '').trim();
+const rawRoleKey = (process.env.AUCLAIRE_SUPABASE_SERVICE_ROLE_KEY || '').trim();
 const supabaseKey = (rawRoleKey && rawRoleKey !== 'AJOUTER_VOTRE_CLE_SERVICE_ROLE_ICI') 
     ? rawRoleKey 
-    : (process.env.AUCLAIRE_SUPABASE_KEY || '');
+    : (process.env.AUCLAIRE_SUPABASE_KEY || '').trim();
 export const supabase = supabaseUrl && supabaseKey ? createSupabaseClient(supabaseUrl, supabaseKey) : null;
 
 // --- Defcon (Turso / LibSQL) ---
-const tursoUrl = process.env.DEFCON_TURSO_URL || '';
-const tursoToken = process.env.DEFCON_TURSO_TOKEN || '';
+const tursoUrl = (process.env.DEFCON_TURSO_URL || '').trim();
+const tursoToken = (process.env.DEFCON_TURSO_TOKEN || '').trim();
 export const turso = tursoUrl && tursoToken ? createTursoClient({ url: tursoUrl, authToken: tursoToken }) : null;
 
 // --- Antigravity Agents (MongoDB) ---
-const mongoUri = process.env.ANTIGRAVITY_MONGODB_URI || '';
+const mongoUri = (process.env.ANTIGRAVITY_MONGODB_URI || '').trim();
 let mongoClient: MongoClient | null = null;
 if (mongoUri) {
   mongoClient = new MongoClient(mongoUri);
@@ -34,8 +34,8 @@ if (mongoUri) {
 export { mongoClient };
 
 // --- DRS Auto Detailing (Supabase) ---
-const drsSupabaseUrl = process.env.DRS_SUPABASE_URL || '';
-const drsSupabaseKey = process.env.DRS_SUPABASE_SERVICE_ROLE_KEY || process.env.DRS_SUPABASE_KEY || '';
+const drsSupabaseUrl = (process.env.DRS_SUPABASE_URL || '').trim();
+const drsSupabaseKey = (process.env.DRS_SUPABASE_SERVICE_ROLE_KEY || process.env.DRS_SUPABASE_KEY || '').trim();
 export const drsSupabase = drsSupabaseUrl && drsSupabaseKey ? createSupabaseClient(drsSupabaseUrl, drsSupabaseKey) : null;
 
 export interface ChartDataPoint {
@@ -687,6 +687,23 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                 status: j.status === 'COMPLETED' ? 'done' : 'in_progress',
                 priority: 'medium',
                 date: j.createdAt ? new Date(j.createdAt).toISOString() : new Date().toISOString()
+            }));
+        } catch (e) {}
+    }
+
+    // 4. Antigravity (MongoDB)
+    if (mongoClient) {
+        try {
+            await mongoClient.connect();
+            const db = mongoClient.db('travel-agency');
+            const items = await db.collection('itineraryitems').find({}).limit(50).toArray();
+            items.forEach(item => tasks.push({
+                id: `vv-${item._id}`,
+                appName: 'Viva Vegas',
+                title: `${item.type || 'Travel Component'} - ${item.name || 'No Name'}`,
+                status: 'in_progress',
+                priority: 'medium',
+                date: item.createdAt ? new Date(item.createdAt).toISOString() : new Date().toISOString()
             }));
         } catch (e) {}
     }
