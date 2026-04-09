@@ -12,12 +12,13 @@ const CityHallScene = dynamic(() => import('@/components/CityHallScene'), {
   ),
 });
 
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, RefreshCw } from 'lucide-react';
 
 export default function TvDashboardPage() {
   const [time, setTime] = React.useState<string>('--:--');
   const [mounted, setMounted] = React.useState(false);
   const [data, setData] = React.useState<any>(null);
+  const [isSyncing, setIsSyncing] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
@@ -29,17 +30,25 @@ export default function TvDashboardPage() {
     setTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
     
     // Live Stats Fetching
-    const fetchLiveStats = async () => {
+    const fetchLiveStats = async (force: boolean = false) => {
+      if (force) setIsSyncing(true);
       try {
-        const res = await fetch('/api/stats');
+        const res = await fetch(`/api/stats${force ? '?force=true' : ''}`);
         const json = await res.json();
         setData(json);
       } catch (e) {
         console.error("Failed to sync structural data:", e);
+      } finally {
+        if (force) setTimeout(() => setIsSyncing(false), 800);
       }
     };
+    
+    // Initial fetch
     fetchLiveStats();
-    const statsInterval = setInterval(fetchLiveStats, 15000); // Refresh every 15s
+    const statsInterval = setInterval(() => fetchLiveStats(false), 30000); // Auto-refresh every 30s
+
+    // Exposed for the button
+    (window as any).fetchLiveStats = fetchLiveStats;
 
     return () => {
       clearInterval(clockInterval);
@@ -93,6 +102,21 @@ export default function TvDashboardPage() {
             Empire Engine - 3D Tycoon Mode
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button 
+                onClick={() => {
+                    const { fetchLiveStats } = (window as any);
+                    if (fetchLiveStats) fetchLiveStats(true);
+                }}
+                id="sync-button"
+                style={{ 
+                    display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(59, 130, 246, 0.2)', 
+                    border: '1px solid rgba(59, 130, 246, 0.4)', padding: '6px 12px', borderRadius: '6px', 
+                    color: '#60a5fa', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s'
+                }}
+            >
+                <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                {isSyncing ? 'SYNCING...' : 'SYNC NOW'}
+            </button>
             <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff' }}>{mounted ? time : '--:--'}</span>
           </div>
         </header>

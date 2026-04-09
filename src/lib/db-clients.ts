@@ -83,9 +83,9 @@ export interface AppStats {
     errorMsg?: string;
 }
 
-export async function fetchGlobalStats(): Promise<{ auclaire: AppStats, defcon: AppStats, antigravity: AppStats, drs: AppStats }> {
+export async function fetchGlobalStats(force: boolean = false): Promise<{ auclaire: AppStats, defcon: AppStats, antigravity: AppStats, drs: AppStats }> {
     const now = Date.now();
-    if (globalStatsCache && globalStatsCache.expires > now) return globalStatsCache.data;
+    if (!force && globalStatsCache && globalStatsCache.expires > now) return globalStatsCache.data;
     const data = await fetchGlobalStatsUncached();
     globalStatsCache = { data, expires: now + GLOBAL_STATS_CACHE_TTL_MS };
     return data;
@@ -126,9 +126,13 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                     
                     billed += invBilled;
                     collected += invCollected;
+ 
+                    // Case-insensitive status check
+                    const statusLower = (inv.status || '').toLowerCase();
+                    const isPaid = statusLower === 'paid' || statusLower === 'completed';
 
                     // Time-series: We attribute 'collected' to the paid_at date if exists, otherwise created_at
-                    const dateRaw = (inv.status === 'paid' && inv.paid_at) ? inv.paid_at : inv.created_at;
+                    const dateRaw = (isPaid && inv.paid_at) ? inv.paid_at : inv.created_at;
                     if (dateRaw && invCollected > 0) {
                         const dateStr = new Date(dateRaw).toISOString().split('T')[0];
                         const existing = chartDataMap.get(dateStr) || { revenue: 0, expenses: 0 };
@@ -140,7 +144,8 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
 
             if (expData) {
                 expData.forEach(exp => {
-                    const isPaid = !exp.status || exp.status === 'paid';
+                    const statusLower = (exp.status || '').toLowerCase();
+                    const isPaid = statusLower === '' || statusLower === 'paid' || statusLower === 'completed';
                     if (isPaid) {
                         const expAmount = Number(exp.amount) || 0;
                         expensesTotal += expAmount;
@@ -257,11 +262,11 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
 
             paymentRes.rows.forEach(row => {
                 const amount = Number(row.amount) || 0;
-                const status = String(row.status);
-                const dateRaw = String(row.date); // e.g., "2024-03-15T..."
+                const status = String(row.status || '').toLowerCase();
+                const dateRaw = String(row.date); 
                 
                 billed += amount;
-                if (status === 'Paid') {
+                if (status === 'paid' || status === 'completed') {
                     collected += amount;
                     
                     if (dateRaw && dateRaw !== 'null') {
@@ -323,8 +328,11 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             // Sum revenue from ItineraryItems
             const items = await db.collection('itineraryitems').find({}).toArray();
             
-            // Sum true expenses from the Expenses collection
-            const expItems = await db.collection('expenses').find({ status: 'paid' }).toArray();
+            // ALSO fetch Converted Quotes for higher accuracy (Primary revenue source)
+            const quotesRes = await db.collection('quotes').find({ status: 'converted' }).toArray();
+            
+            // Sum true operational expenses
+            const expItems = await db.collection('expenses').find({ status: { $in: ['paid', 'completed'] } }).toArray();
 
             let billed = 0;
             let expenses = 0;
@@ -332,65 +340,63 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             const chartDataMap = new Map<string, { revenue: number, expenses: number }>();
             const activities: AppActivity[] = [];
 
+            // 1. Process Quotes (Main Revenue)
+            quotesRes.forEach(q => {
+                const qRev = Number(q.totals?.totalClientPrice) || 0;
+                billed += qRev;
+                const qDate = q.convertedAt || q.createdAt;
+                if (qDate && qRev > 0) {
+                    const dateStr = new Date(qDate).toISOString().split('T')[0];
+                    const existing = chartDataMap.get(dateStr) || { revenue: 0, expenses: 0 };
+                    existing.revenue += qRev;
+                    chartDataMap.set(dateStr, existing);
+                }
+            });
+
+            // 2. Process Itinerary Items (Markup + COGS)
             items.forEach(item => {
                 const cost = Number(item.cost) || 0;
                 const serviceFee = Number(item.serviceFee) || 0;
                 const costPrice = Number(item.costPrice) || 0;
                 
-                const revenue = cost + serviceFee;
-                billed += revenue;
-                
-                // We add costPrice (COGS) as a base expense. 
-                // We DO NOT add calculated commission here because it is paid out and logged in the 'expenses' collection.
-                expenses += costPrice;
-
-                // Time-series
-                if (item.createdAt && (revenue > 0 || costPrice > 0)) {
-                    const dateStr = new Date(item.createdAt).toISOString().split('T')[0];
-                    const existing = chartDataMap.get(dateStr) || { revenue: 0, expenses: 0 };
-                    existing.revenue += revenue;
-                    existing.expenses += costPrice;
-                    chartDataMap.set(dateStr, existing);
-
-                    if (revenue > 0) {
-                        activities.push({
-                            id: `vv-item-${item.createdAt}-${Math.random()}`,
-                            appName: 'Viva Vegas',
-                            type: 'payment_collected',
-                            title: 'Trip Booked',
-                            description: `Revenue of $${revenue} recorded`,
-                            amount: revenue,
-                            date: new Date(item.createdAt).toISOString()
-                        });
+                // If it's an isolated item (not tied to a quote already counted), add its revenue
+                if (!item.quoteId) {
+                    const revenue = cost + serviceFee;
+                    billed += revenue;
+                    const dateRaw = item.createdAt || item.date;
+                    if (dateRaw) {
+                        const dateStr = new Date(dateRaw).toISOString().split('T')[0];
+                        const existing = chartDataMap.get(dateStr) || { revenue: 0, expenses: 0 };
+                        existing.revenue += revenue;
+                        existing.expenses += costPrice;
+                        chartDataMap.set(dateStr, existing);
+                    }
+                } else {
+                    // Item expense (COGS) still counts against the quote revenue
+                    const dateRaw = item.createdAt || item.date;
+                    if (dateRaw) {
+                        const dateStr = new Date(dateRaw).toISOString().split('T')[0];
+                        const existing = chartDataMap.get(dateStr) || { revenue: 0, expenses: 0 };
+                        existing.expenses += costPrice;
+                        chartDataMap.set(dateStr, existing);
                     }
                 }
+                expenses += costPrice;
             });
 
+            // 3. Process Operational Expenses
             expItems.forEach(exp => {
                 const expAmount = Number(exp.amount) || 0;
                 expenses += expAmount;
-
-                // Extract specifically 'Commission Payout' category
                 if (exp.category === 'Commission Payout') {
                     commissionsPaid += expAmount;
                 }
-
                 const dateRaw = exp.date || exp.createdAt;
                 if (dateRaw && expAmount > 0) {
                     const dateStr = new Date(dateRaw).toISOString().split('T')[0];
                     const existing = chartDataMap.get(dateStr) || { revenue: 0, expenses: 0 };
                     existing.expenses += expAmount;
                     chartDataMap.set(dateStr, existing);
-
-                    activities.push({
-                        id: `vv-exp-${dateRaw}-${Math.random()}`,
-                        appName: 'Viva Vegas',
-                        type: exp.category === 'Commission Payout' ? 'commission_paid' : 'expense_logged',
-                        title: exp.category === 'Commission Payout' ? 'Commission Paid' : 'Expense Recorded',
-                        description: `Outgoing of $${expAmount} recorded`,
-                        amount: expAmount,
-                        date: new Date(dateRaw).toISOString()
-                    });
                 }
             });
 
@@ -444,7 +450,8 @@ path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
                 jobs.forEach(job => {
                     const price = Number(job.totalPrice) || 0;
                     billed += price;
-                    if (job.status === 'COMPLETED') {
+                    const statusLower = (job.status || '').toLowerCase();
+                    if (statusLower === 'completed' || statusLower === 'paid') {
                         collected += price;
                         if (job.updatedAt) {
                             const dateRaw = new Date(job.updatedAt);

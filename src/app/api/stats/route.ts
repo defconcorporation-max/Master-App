@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { fetchGlobalStats, fetchOmniTasks } from '@/lib/db-clients';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const force = searchParams.get('force') === 'true';
+    
     const [stats, tasks] = await Promise.all([
-      fetchGlobalStats(),
+      fetchGlobalStats(force),
       fetchOmniTasks()
     ]);
     return NextResponse.json({ stats, tasks });
