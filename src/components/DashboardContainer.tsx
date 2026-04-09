@@ -52,6 +52,7 @@ import { GoalsWidget } from '@/components/GoalsWidget';
 import { PeriodComparison } from '@/components/PeriodComparison';
 import { ProcessStatusPanel } from '@/components/ProcessStatusPanel';
 import { AttentionBlock } from '@/components/AttentionBlock';
+import { AppStats } from '@/lib/db-clients';
 
 type Tab = 'pulse' | 'ops' | 'strategy' | 'comms' | 'systems';
 
@@ -61,7 +62,7 @@ interface DashboardContainerProps {
         stats: any;
         tasks: any[];
         clients: any[];
-        deployedApps: Array<{ id?: AppId; name: string; [k: string]: any }>;
+        deployedApps: AppStats[];
         totalUsers: number;
         totalActivity: number;
         totalBilled: number;
@@ -88,7 +89,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
     };
 
     const filteredData = useMemo(() => {
-        const apps = data.deployedApps.filter((app) => app.id && selectedApps.includes(app.id as AppId));
+        const apps = data.deployedApps.filter((app: any) => app.id && selectedApps.includes(app.id as AppId));
         const chartData = filterChartDataByDateRange(
             apps.flatMap((a) => (a.chartData ?? [])),
             dateRange
