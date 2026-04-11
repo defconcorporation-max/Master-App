@@ -52,6 +52,8 @@ import { ExportCSVButton, buildStatsCSV, downloadCSV } from '@/components/Export
 import { GoalsWidget } from '@/components/GoalsWidget';
 import { PeriodComparison } from '@/components/PeriodComparison';
 import { ProcessStatusPanel } from '@/components/ProcessStatusPanel';
+import { WhaleTracker } from '@/components/WhaleTracker';
+import { ExpenseRadar } from '@/components/ExpenseRadar';
 import { AppStats } from '@/lib/db-clients';
 
 type Tab = 'pulse' | 'ops' | 'strategy' | 'comms' | 'systems';
@@ -251,15 +253,24 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                 return (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <h2 className="text-xl font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                             <TrendingUp className="w-6 h-6" /> Strategic Planning Lab
+                             <TrendingUp className="w-6 h-6" /> Strategic Intelligence Lab
                         </h2>
+                        {/* Deep Data: Whale Tracker + Expense Radar */}
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                            <RevenueSimulator />
-                            <AutoSocialArchitect stats={filteredData.stats} />
+                            <div className="h-[600px]">
+                                <WhaleTracker />
+                            </div>
+                            <div className="h-[600px]">
+                                <ExpenseRadar />
+                            </div>
                         </div>
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                             <ComparativeAnalytics apps={filteredData.deployedApps} />
                             <LoyaltyPredictor />
+                        </div>
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                            <RevenueSimulator />
+                            <AutoSocialArchitect stats={filteredData.stats} />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <VentureSimulator />

@@ -935,3 +935,70 @@ export async function fetchOmniCRM(): Promise<EmpireContact[]> {
 
     return clients.sort((a, b) => b.lifetimeValue - a.lifetimeValue); // VIP first
 }
+
+// --- Expense Breakdown Intelligence ---
+export interface ExpenseItem {
+    id: string;
+    appName: string;
+    category: string;
+    description: string;
+    amount: number;
+    date: string;
+}
+
+export async function fetchExpenseBreakdown(): Promise<ExpenseItem[]> {
+    const items: ExpenseItem[] = [];
+
+    // 1. Defcon expenses
+    if (turso) {
+        try {
+            const res = await turso.execute("SELECT id, category, description, amount, date FROM expenses ORDER BY date DESC LIMIT 100");
+            res.rows.forEach(r => {
+                items.push({
+                    id: `def-exp-${r.id}`,
+                    appName: 'Defcon',
+                    category: String(r.category || 'Général'),
+                    description: String(r.description || ''),
+                    amount: Number(r.amount || 0),
+                    date: String(r.date || new Date().toISOString())
+                });
+            });
+        } catch (e) {}
+    }
+
+    // 2. Auclaire expenses (if table exists)
+    if (supabase) {
+        try {
+            const { data } = await supabase.from('expenses').select('id, category, description, amount, created_at').order('created_at', { ascending: false }).limit(100);
+            data?.forEach(e => {
+                items.push({
+                    id: `auc-exp-${e.id}`,
+                    appName: 'Auclaire',
+                    category: e.category || 'Général',
+                    description: e.description || '',
+                    amount: Number(e.amount || 0),
+                    date: e.created_at || new Date().toISOString()
+                });
+            });
+        } catch (e) {}
+    }
+
+    // 3. DRS expenses
+    if (drsSupabase) {
+        try {
+            const { data } = await drsSupabase.from('Expense').select('id, category, description, amount, createdAt').order('createdAt', { ascending: false }).limit(100);
+            data?.forEach(e => {
+                items.push({
+                    id: `drs-exp-${e.id}`,
+                    appName: 'DRS',
+                    category: e.category || 'Général',
+                    description: e.description || '',
+                    amount: Number(e.amount || 0),
+                    date: e.createdAt || new Date().toISOString()
+                });
+            });
+        } catch (e) {}
+    }
+
+    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
