@@ -26,7 +26,18 @@ export function WarRoom({ tasks }: WarRoomProps) {
     }, [tasks]);
 
     const activeOps = useMemo(() => {
-        return tasks.filter(t => t.status === 'in_progress').slice(0, 4);
+        return tasks.filter(t => {
+            if (t.status !== 'in_progress') return false;
+            
+            // Specifically restrict Auclaire projects to production stages
+            if (t.appName.includes('Auclaire')) {
+                if (!t.stage) return false;
+                const s = t.stage.toLowerCase();
+                const isDesignPhase = s.includes('design') || s === 'todo' || s === 'concept';
+                if (isDesignPhase) return false;
+            }
+            return true;
+        }).slice(0, 4);
     }, [tasks]);
 
     return (

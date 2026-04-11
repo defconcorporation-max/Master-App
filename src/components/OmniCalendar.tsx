@@ -197,8 +197,8 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                             );
                         })}
                     </div>
-                    
-                    <div className="flex-1 grid grid-cols-7 gap-3">
+                    {/* Add min-h-0 to constrain grid expand and force internal scrolling */}
+                    <div className="flex-1 grid grid-cols-7 gap-3 min-h-0">
                         {days.map((day, idx) => {
                             const isToday = isSameDay(day, new Date());
                             
