@@ -55,11 +55,13 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
         // 1. Add Operational Tasks
         tasks.forEach(t => {
             let parsed = new Date(t.date);
-            if (isNaN(parsed.getTime())) return;
+            const isInvalidDate = isNaN(parsed.getTime());
             
-            // Keep active tasks visible by anchoring past pending ones to today
-            if (t.status !== 'done' && parsed < new Date()) {
+            // Keep active tasks visible by anchoring past pending ones OR ones without a date to today
+            if (t.status !== 'done' && (isInvalidDate || parsed < new Date())) {
                 parsed = new Date();
+            } else if (isInvalidDate) {
+                return; // Cannot display a completed task that has no historical date
             }
             
             let type: CalendarEvent['type'] = 'job';
