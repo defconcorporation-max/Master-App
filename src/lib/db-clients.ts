@@ -113,7 +113,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             const { data: invData, error: invError } = await supabase.from('invoices').select('*');
             
             // Extract all expenses
-            const { data: expData, error: expError } = await supabase.from('expenses').select('amount, date, status, created_at, category');
+            const { data: expData, error: expError } = await supabase.from('expenses').select('*');
 
             let billed = 0;
             let collected = 0;
