@@ -26,6 +26,7 @@ import { GlobalFinancialPortfolio } from '@/components/GlobalFinancialPortfolio'
 import { GlobalChart } from '@/components/GlobalChart';
 import { OmniKanban } from '@/components/OmniKanban';
 import { OmniCalendar } from '@/components/OmniCalendar';
+import { OmniCRM } from '@/components/OmniCRM';
 import { WarRoom } from '@/components/WarRoom';
 import { GlobalActivityStream } from '@/components/GlobalActivityStream';
 import { RevenueSimulator } from '@/components/RevenueSimulator';
@@ -274,18 +275,8 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                 );
             case 'comms':
                 return (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="h-[600px]">
-                            <OmniCRM clients={filteredData.clients} />
-                        </div>
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            <div className="lg:col-span-1 h-[600px]">
-                                <CommunicationBridge />
-                            </div>
-                            <div className="lg:col-span-2 h-[600px]">
-                                <TicketAggregator />
-                            </div>
-                        </div>
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 h-[85vh]">
+                        <OmniCRM />
                     </div>
                 );
             case 'systems':

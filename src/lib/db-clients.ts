@@ -799,62 +799,139 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
     return tasks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export interface OmniClient {
+export interface EmpireContact {
     id: string;
     name: string;
     email: string;
+    phone?: string;
     appName: string;
-    status: 'active' | 'inactive' | 'lead';
+    status: 'vip' | 'active' | 'lead' | 'cold';
     lastActive: string;
+    lifetimeValue: number;
+    metrics: string; // Brief one-liner of what they did (e.g. "2 shoots", "1 ring")
 }
 
-export async function fetchGlobalClients(): Promise<OmniClient[]> {
-    const clients: OmniClient[] = [];
+export async function fetchOmniCRM(): Promise<EmpireContact[]> {
+    const clients: EmpireContact[] = [];
 
-    // 1. Auclaire (Users / Clients)
+    // 1. Auclaire (Clients & Users + Invoices for LTV)
     if (supabase) {
         try {
-            const { data } = await supabase.from('users').select('id, name, email, created_at');
-            data?.forEach(u => clients.push({
-                id: `auc-${u.id}`,
-                name: u.name || 'Anonymous',
-                email: u.email || 'no-email',
-                appName: 'Auclaire APP',
-                status: 'active',
-                lastActive: u.created_at
-            }));
-        } catch (e) {}
+            const [usersRes, invRes] = await Promise.all([
+                supabase.from('users').select('id, name, email, created_at'),
+                supabase.from('invoices').select('user_id, amount_paid, status')
+            ]);
+            
+            const ltvMap = new Map<string, number>();
+            invRes.data?.forEach(inv => {
+                if (inv.status === 'paid' && inv.user_id) {
+                    ltvMap.set(inv.user_id, (ltvMap.get(inv.user_id) || 0) + Number(inv.amount_paid));
+                }
+            });
+
+            usersRes.data?.forEach(u => {
+                const ltv = ltvMap.get(u.id) || 0;
+                clients.push({
+                    id: `auc-${u.id}`,
+                    name: u.name || 'Anonyme',
+                    email: u.email || 'Pas d\'email',
+                    appName: 'Auclaire',
+                    status: ltv > 5000 ? 'vip' : (ltv > 0 ? 'active' : 'lead'),
+                    lastActive: u.created_at || new Date().toISOString(),
+                    lifetimeValue: ltv,
+                    metrics: ltv > 0 ? 'Client Confirmé' : 'Prospect'
+                });
+            });
+        } catch (e) {
+            console.error("Auclaire CRM error", e);
+        }
     }
 
-    // 2. Defcon (Shoots - extracting unique contacts)
+    // 2. Defcon (Clients table)
     if (turso) {
         try {
-            const res = await turso.execute("SELECT DISTINCT contact_name, contact_email, date FROM shoots");
-            res.rows.forEach(r => clients.push({
-                id: `def-${r.contact_email}`,
-                name: String(r.contact_name),
-                email: String(r.contact_email),
-                appName: 'Defcon App',
-                status: 'active',
-                lastActive: String(r.date)
-            }));
-        } catch (e) {}
+            const res = await turso.execute("SELECT id, name, email, created_at FROM clients");
+            const payments = await turso.execute("SELECT client_id, amount FROM payments WHERE status='paid' OR status='completed'");
+            
+            const ltvMap = new Map<string, number>();
+            payments.rows.forEach(p => {
+                const cid = String(p.client_id);
+                ltvMap.set(cid, (ltvMap.get(cid) || 0) + Number(p.amount || 0));
+            });
+
+            res.rows.forEach(r => {
+                const cid = String(r.id);
+                const ltv = ltvMap.get(cid) || 0;
+                clients.push({
+                    id: `def-${cid}`,
+                    name: String(r.name || 'Anonyme'),
+                    email: String(r.email || 'Pas d\'email'),
+                    appName: 'Defcon',
+                    status: ltv > 10000 ? 'vip' : (ltv > 0 ? 'active' : 'lead'),
+                    lastActive: String(r.created_at || new Date().toISOString()),
+                    lifetimeValue: ltv,
+                    metrics: ltv > 0 ? 'Client Confirmé' : 'Prospect'
+                });
+            });
+        } catch (e) {
+            console.error("Defcon CRM error", e);
+        }
     }
 
-    // 3. DRS (Supabase)
+    // 3. DRS (ClientProfile + Jobs)
     if (drsSupabase) {
         try {
-            const { data } = await drsSupabase.from('ClientProfile').select('id, firstName, lastName, email, createdAt');
-            data?.forEach(c => clients.push({
-                id: `drs-${c.id}`,
-                name: `${c.firstName} ${c.lastName}`,
-                email: c.email || 'no-email',
-                appName: 'DRS Auto Detailing',
-                status: 'active',
-                lastActive: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString()
-            }));
+            const [profiles, jobs] = await Promise.all([
+                drsSupabase.from('ClientProfile').select('*'),
+                drsSupabase.from('Job').select('clientId, totalPrice, status')
+            ]);
+            
+            const ltvMap = new Map<string, number>();
+            jobs.data?.forEach(j => {
+                if (j.status === 'COMPLETED' && j.clientId) {
+                    ltvMap.set(j.clientId, (ltvMap.get(j.clientId) || 0) + Number(j.totalPrice || 0));
+                }
+            });
+
+            profiles.data?.forEach(c => {
+                const ltv = ltvMap.get(c.id) || 0;
+                clients.push({
+                    id: `drs-${c.id}`,
+                    name: `${c.firstName} ${c.lastName}`,
+                    email: c.email || 'Pas d\'email',
+                    phone: c.phone || undefined,
+                    appName: 'DRS',
+                    status: ltv > 2000 ? 'vip' : (ltv > 0 ? 'active' : 'lead'),
+                    lastActive: c.updatedAt || c.createdAt || new Date().toISOString(),
+                    lifetimeValue: ltv,
+                    metrics: ltv > 0 ? 'Client Confirmé' : 'Prospect'
+                });
+            });
         } catch (e) {}
     }
 
-    return clients.sort((a, b) => new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime());
+    // 4. Viva Vegas (MongoDB clients)
+    if (mongoClient) {
+        try {
+            await mongoClient.connect();
+            const db = mongoClient.db('travel-agency');
+            const vvClients = await db.collection('clients').find({}).toArray();
+            
+            vvClients.forEach(c => {
+                clients.push({
+                    id: `vv-${c._id}`,
+                    name: c.name || [c.firstName, c.lastName].join(' ').trim() || 'Anonyme',
+                    email: c.email || 'Pas d\'email',
+                    phone: c.phone,
+                    appName: 'Viva Vegas',
+                    status: 'lead', // Hardcoded as lead unless we query quotes for LTV
+                    lastActive: c.updatedAt || c.createdAt || new Date().toISOString(),
+                    lifetimeValue: 0,
+                    metrics: 'Prospect'
+                });
+            });
+        } catch (e) {}
+    }
+
+    return clients.sort((a, b) => b.lifetimeValue - a.lifetimeValue); // VIP first
 }
