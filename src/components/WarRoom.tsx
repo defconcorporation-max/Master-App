@@ -3,13 +3,13 @@
 import React, { useMemo } from 'react';
 import { OmniTask } from '@/lib/db-clients';
 import { 
-    Zap, 
     Shield, 
     Target, 
     Activity, 
-    AlertTriangle, 
-    ArrowRight,
-    Radio,
+    Briefcase,
+    DollarSign,
+    User,
+    AlertTriangle,
     Clock
 } from 'lucide-react';
 
@@ -18,75 +18,89 @@ interface WarRoomProps {
 }
 
 export function WarRoom({ tasks }: WarRoomProps) {
-    const activeOps = useMemo(() => {
-        return tasks.filter(t => t.status === 'in_progress').slice(0, 5);
+    const criticalOps = useMemo(() => {
+        return tasks.filter(t => 
+            t.status !== 'done' && 
+            (t.priority === 'critical' || t.priority === 'high' || (t.budget && t.budget > 1000))
+        ).sort((a, b) => (b.budget || 0) - (a.budget || 0)).slice(0, 5);
     }, [tasks]);
 
-    const upcomingEvents = useMemo(() => {
-        return tasks
-            .filter(t => t.status !== 'done')
-            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-            .slice(0, 3);
+    const activeOps = useMemo(() => {
+        return tasks.filter(t => t.status === 'in_progress').slice(0, 4);
     }, [tasks]);
 
     return (
-        <div className="bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(37,99,235,0.1)] flex flex-col h-full">
-            {/* Header: Combat HUD Style */}
-            <div className="p-5 border-b border-zinc-900 bg-zinc-900/40 flex items-center justify-between">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-full">
+            {/* Header: Executive Dashboard Style */}
+            <div className="p-5 border-b border-white/5 bg-gradient-to-r from-slate-900 to-slate-900/40 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="relative">
-                        <Shield className="w-5 h-5 text-blue-500 fill-blue-500/10" />
-                        <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full animate-pulse" />
+                    <div className="p-2 bg-red-500/10 rounded-xl border border-red-500/20">
+                        <AlertTriangle className="w-5 h-5 text-red-400" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white">The War Room</h2>
-                        <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-                            <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Global Ops Active</span>
+                        <h2 className="text-sm font-black uppercase tracking-widest text-white">War Room</h2>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">High-Value Dependencies</span>
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
-                    <div className="px-3 py-1 bg-zinc-800/80 rounded border border-zinc-700 font-mono text-[10px] text-zinc-400">
-                        LAT: 48.85 / LON: 2.35
-                    </div>
+                <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Critical Value</span>
+                    <span className="text-sm font-black text-red-400">
+                        ${criticalOps.reduce((s, t) => s + (t.budget || 0), 0).toLocaleString()}
+                    </span>
                 </div>
             </div>
 
-            <div className="flex-1 p-6 space-y-8">
+            <div className="flex-1 p-5 space-y-6 overflow-y-auto scrollbar-hide">
                 {/* Critical Targets */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-zinc-400">
-                            <Target className="w-4 h-4" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Active Missions</span>
-                        </div>
-                        <span className="text-[10px] text-blue-500 font-bold">{activeOps.length} DETECTED</span>
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-red-400">
+                        <Target className="w-4 h-4" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">High Priority</span>
                     </div>
 
-                    <div className="space-y-3">
-                        {activeOps.length === 0 ? (
-                            <div className="p-4 border border-dashed border-zinc-800 rounded-2xl text-center text-zinc-600">
-                                <span className="text-xs">No active tactical operations.</span>
+                    <div className="space-y-2">
+                        {criticalOps.length === 0 ? (
+                            <div className="p-4 border border-dashed border-white/5 rounded-2xl text-center text-slate-500">
+                                <span className="text-xs">No critical operations detected.</span>
                             </div>
                         ) : (
-                            activeOps.map((op) => (
-                                <div key={op.id} className="relative group p-4 bg-zinc-900/40 border border-zinc-800 rounded-2xl hover:border-blue-500/30 transition-all flex items-center justify-between overflow-hidden">
-                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500/50 group-hover:bg-blue-400 transition-colors" />
-                                    <div className="flex flex-col">
-                                        <span className="text-[8px] font-black text-zinc-600 uppercase mb-1 tracking-tighter italic">
-                                            {op.appName} // SECURE_LINE
-                                        </span>
-                                        <h3 className="text-xs font-bold text-white group-hover:text-blue-200 transition-colors truncate max-w-[180px]">
-                                            {op.title}
-                                        </h3>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-[8px] text-zinc-500 font-mono">STATUS</span>
-                                            <span className="text-[9px] font-bold text-emerald-500 font-mono">ENGAGED</span>
+                            criticalOps.map((op) => (
+                                <div key={op.id} className="group p-3 bg-red-500/5 border border-red-500/20 rounded-2xl hover:bg-red-500/10 transition-colors flex flex-col gap-2 relative overflow-hidden">
+                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />
+                                    <div className="flex items-center justify-between pl-1">
+                                        <div className="flex items-center gap-1.5">
+                                            <Briefcase className="w-3 h-3 text-red-400" />
+                                            <span className="text-[9px] font-black text-red-400 uppercase tracking-wider">
+                                                {op.appName}
+                                            </span>
                                         </div>
-                                        <Radio className="w-4 h-4 text-blue-500 animate-pulse" />
+                                        {op.budget ? (
+                                            <span className="text-[10px] font-black text-white bg-red-500/20 px-2 py-0.5 rounded">
+                                                ${op.budget.toLocaleString()}
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                    <h3 className="text-sm font-bold text-white leading-tight pl-1">
+                                        {op.title}
+                                    </h3>
+                                    <div className="flex items-center flex-wrap gap-2 pl-1 mt-1">
+                                        {op.clientName && (
+                                            <div className="flex items-center gap-1 text-[9px] text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded border border-white/5">
+                                                <User className="w-2.5 h-2.5" />
+                                                {op.clientName}
+                                            </div>
+                                        )}
+                                        {op.stage && (
+                                            <div className="flex items-center gap-1 text-[9px] text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded border border-white/5 uppercase">
+                                                {op.stage.replace('_', ' ')}
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-1 text-[9px] text-red-300 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/10 uppercase font-bold">
+                                            Priority: {op.priority}
+                                        </div>
                                     </div>
                                 </div>
                             ))
@@ -94,58 +108,35 @@ export function WarRoom({ tasks }: WarRoomProps) {
                     </div>
                 </div>
 
-                {/* Tactical Timeline */}
-                <div className="space-y-4 pt-4 border-t border-zinc-900">
-                    <div className="flex items-center gap-2 text-zinc-400">
-                        <Activity className="w-4 h-4 text-orange-500" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-orange-500/80">Imminent Ops</span>
+                {/* Active Operations */}
+                <div className="space-y-3 pt-4 border-t border-white/5">
+                    <div className="flex items-center gap-2 text-blue-400">
+                        <Activity className="w-4 h-4" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Active Execution</span>
                     </div>
 
-                    <div className="space-y-3">
-                        {upcomingEvents.map((ev, i) => (
-                            <div key={ev.id} className="flex items-start gap-4">
-                                <div className="flex flex-col items-center pt-1">
-                                    <div className="w-2 h-2 rounded-full bg-zinc-700 border border-zinc-600" />
-                                    {i < upcomingEvents.length - 1 && <div className="w-px h-10 bg-zinc-800" />}
-                                </div>
-                                <div className="flex-1">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className="text-[9px] font-bold text-zinc-400 uppercase">
-                                            {new Date(ev.date).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
+                    <div className="space-y-2">
+                        {activeOps.map((op) => (
+                            <div key={op.id} className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-2xl flex flex-col gap-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[9px] font-black text-blue-400 uppercase tracking-wider">
+                                        {op.appName}
+                                    </span>
+                                    {op.date && (
+                                        <span className="text-[9px] text-slate-400 flex items-center gap-1">
+                                            <Clock className="w-2.5 h-2.5" />
+                                            {new Date(op.date).toLocaleDateString()}
                                         </span>
-                                        <div className="flex items-center gap-1">
-                                            <Clock className="w-2.5 h-2.5 text-zinc-600" />
-                                            <span className="text-[8px] text-zinc-600 font-mono italic">ETA: UNKNOWN</span>
-                                        </div>
-                                    </div>
-                                    <p className="text-[11px] text-zinc-500 leading-tight">
-                                        {ev.title} <span className="text-zinc-700 italic">[{ev.appName}]</span>
-                                    </p>
+                                    )}
                                 </div>
+                                <h3 className="text-xs font-semibold text-white">
+                                    {op.title}
+                                </h3>
+                                {op.clientName && (
+                                    <p className="text-[10px] text-slate-400">Client: {op.clientName}</p>
+                                )}
                             </div>
                         ))}
-                    </div>
-                </div>
-            </div>
-
-            {/* Footer Metrics */}
-            <div className="mt-auto p-4 bg-zinc-900/60 border-t border-zinc-900 grid grid-cols-2 gap-4">
-                <div className="flex flex-col">
-                    <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">Threat Level</span>
-                    <div className="flex items-center gap-1">
-                        <div className="h-1 flex-1 bg-zinc-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500 w-1/4" />
-                        </div>
-                        <span className="text-[9px] font-bold text-emerald-500 font-mono">LOW</span>
-                    </div>
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">Sync Health</span>
-                    <div className="flex items-center gap-1">
-                        <div className="h-1 flex-1 bg-zinc-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-500 w-full" />
-                        </div>
-                        <span className="text-[9px] font-bold text-blue-500 font-mono">100%</span>
                     </div>
                 </div>
             </div>

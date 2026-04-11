@@ -640,6 +640,7 @@ export interface OmniTask {
     stage?: string;        // Auclaire pipeline: designing, 3d_model, production, delivery, etc.
     jewelryType?: string | null;  // Bague, Collier, Bracelet, etc.
     budget?: number;       // Sale price
+    clientName?: string;
 }
 
 export async function fetchOmniTasks(): Promise<OmniTask[]> {
@@ -648,7 +649,8 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
     // 1. Auclaire (Projects — full pipeline)
     if (supabase) {
         try {
-            const { data } = await supabase.from('projects').select('id, title, status, priority, jewelry_type, budget, created_at');
+            // Using * is safer if columns change, but let's stick to what we know exists
+            const { data } = await supabase.from('projects').select('*');
             data?.forEach(p => {
                 const pStatus = p.status || 'designing';
                 let omniStatus: OmniTask['status'] = 'in_progress';
@@ -661,46 +663,60 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                 tasks.push({
                     id: `auc-${p.id}`,
                     appName: 'Auclaire APP',
-                    title: p.title || 'Sans titre',
+                    title: p.title || p.name || 'Sans titre',
                     status: omniStatus,
                     priority: omniPriority,
-                    date: p.created_at,
+                    date: p.created_at || new Date().toISOString(),
                     stage: pStatus,
                     jewelryType: p.jewelry_type || null,
-                    budget: Number(p.budget) || 0,
+                    budget: Number(p.budget || p.amount || 0),
+                    clientName: p.client_name || p.clientName || undefined
                 });
             });
-        } catch (e) {}
+        } catch (e) {
+            console.error("Auclaire Tasks Fetch Error:", e);
+        }
     }
 
     // 2. Defcon (Shoots)
     if (turso) {
         try {
-            const res = await turso.execute("SELECT id, title, status, date FROM shoots");
-            res.rows.forEach(r => tasks.push({
-                id: `def-${r.id}`,
-                appName: 'Defcon App',
-                title: String(r.title),
-                status: String(r.status).toLowerCase().includes('done') ? 'done' : 'in_progress',
-                priority: 'high',
-                date: String(r.date)
-            }));
-        } catch (e) {}
+            // Unsafe query replaced! Using SELECT * avoids crashing if strict columns (like 'date' or 'status') do not exist.
+            const res = await turso.execute("SELECT * FROM shoots");
+            res.rows.forEach(r => {
+                const dateRaw = r.date || r.shoot_date || r.created_at || r.createdAt;
+                tasks.push({
+                    id: `def-${r.id || r.shoot_id || Math.random()}`,
+                    appName: 'Defcon App',
+                    title: String(r.title || r.name || 'Untitled Shoot'),
+                    status: String(r.status || r.state || 'in_progress').toLowerCase().includes('done') ? 'done' : 'in_progress',
+                    priority: 'high',
+                    date: dateRaw ? String(dateRaw) : new Date().toISOString(), // Fallback directly preventing NaN/invalid parsing later
+                    clientName: r.contact_name ? String(r.contact_name) : undefined,
+                    budget: Number(r.budget || r.price || r.amount || 0)
+                });
+            });
+        } catch (e) {
+            console.error("Defcon Tasks Fetch Error:", e);
+        }
     }
 
     // 3. DRS (Supabase)
     if (drsSupabase) {
         try {
-            const { data: jobs } = await drsSupabase.from('Job').select('id, title, status, createdAt');
+            const { data: jobs } = await drsSupabase.from('Job').select('*');
             jobs?.forEach(j => tasks.push({
                 id: `drs-${j.id}`,
                 appName: 'DRS Auto Detailing',
-                title: j.title || 'Untitled Job',
+                title: j.title || j.name || 'Untitled Job',
                 status: j.status === 'COMPLETED' ? 'done' : 'in_progress',
                 priority: 'medium',
-                date: j.createdAt ? new Date(j.createdAt).toISOString() : new Date().toISOString()
+                date: j.createdAt ? new Date(j.createdAt).toISOString() : new Date().toISOString(),
+                budget: Number(j.totalPrice || j.price || 0),
             }));
-        } catch (e) {}
+        } catch (e) {
+            console.error("DRS Tasks Fetch Error:", e);
+        }
     }
 
     // 4. Antigravity (MongoDB)
