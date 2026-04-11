@@ -25,6 +25,7 @@ import { AISummary } from '@/components/AISummary';
 import { GlobalFinancialPortfolio } from '@/components/GlobalFinancialPortfolio';
 import { GlobalChart } from '@/components/GlobalChart';
 import { OmniKanban } from '@/components/OmniKanban';
+import { OmniCalendar } from '@/components/OmniCalendar';
 import { WarRoom } from '@/components/WarRoom';
 import { GlobalActivityStream } from '@/components/GlobalActivityStream';
 import { RevenueSimulator } from '@/components/RevenueSimulator';
@@ -82,6 +83,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
     const [dateRange, setDateRange] = useState<DateRange>('30d');
     const [viewMode, setViewMode] = useState<ViewMode>('empire');
     const [presentationMode, setPresentationMode] = useState(false);
+    const [opsView, setOpsView] = useState<'board' | 'calendar'>('board');
     const router = useRouter();
 
     const handle3DLaunch = () => {
@@ -204,8 +206,35 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
             case 'ops':
                 return (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="h-[550px]">
-                            <OmniKanban tasks={filteredData.tasks} />
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                                <Rocket className="w-6 h-6" /> Operations Center
+                            </h2>
+                            <div className="flex bg-zinc-900/50 p-1 rounded-xl border border-white/5 shadow-inner">
+                                <button
+                                    onClick={() => setOpsView('board')}
+                                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${
+                                        opsView === 'board' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'text-slate-500 hover:text-slate-300'
+                                    }`}
+                                >
+                                    Board
+                                </button>
+                                <button
+                                    onClick={() => setOpsView('calendar')}
+                                    className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${
+                                        opsView === 'calendar' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'text-slate-500 hover:text-slate-300'
+                                    }`}
+                                >
+                                    Agenda
+                                </button>
+                            </div>
+                        </div>
+                        <div className="h-[650px] relative">
+                            {opsView === 'board' ? (
+                                <OmniKanban tasks={filteredData.tasks} />
+                            ) : (
+                                <OmniCalendar tasks={filteredData.tasks} />
+                            )}
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <div className="h-[500px]">
