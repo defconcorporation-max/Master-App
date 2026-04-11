@@ -107,16 +107,25 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
     if (supabase) {
         try {
             // Get all clients to map their names locally safely
-            // In Auclaire, clients are stored in the 'users' table!
-            const { data: clientsData, error: userError } = await supabase.from('users').select('*');
+            // In Auclaire, try 'clients' first, then 'users' if empty/error. Never crash the app.
+            let clientsData: any[] | null = null;
+            let userCount = 0;
+            const resClients = await supabase.from('clients').select('*');
+            if (resClients.data && resClients.data.length > 0) {
+                clientsData = resClients.data;
+            } else {
+                const resUsers = await supabase.from('users').select('*');
+                if (resUsers.data) clientsData = resUsers.data;
+            }
+            
             const clientMap = new Map<string, string>();
             if (clientsData) {
                 clientsData.forEach(c => {
                     const fullName = c.name || c.full_name || c.client_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Client Sans Nom';
                     clientMap.set(c.id, fullName);
                 });
+                userCount = clientsData.length;
             }
-            const userCount = clientsData ? clientsData.length : 0;
             
             // Extract all invoices to calculate billed, collected, pending, and time-series
             const { data: invData, error: invError } = await supabase.from('invoices').select('*');
@@ -238,7 +247,6 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             // Count total projects for 'tasks'
             const { count: projCount } = await supabase.from('projects').select('*', { count: 'exact', head: true });
 
-            if (userError && userError.code !== '42P01') throw userError;
             if (invError && invError.code !== '42P01') throw invError;
             if (expError && expError.code !== '42P01') throw expError;
 
