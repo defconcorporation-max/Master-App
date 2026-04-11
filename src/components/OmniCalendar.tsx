@@ -54,8 +54,13 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
 
         // 1. Add Operational Tasks
         tasks.forEach(t => {
-            const parsed = new Date(t.date);
+            let parsed = new Date(t.date);
             if (isNaN(parsed.getTime())) return;
+            
+            // Keep active tasks visible by anchoring past pending ones to today
+            if (t.status !== 'done' && parsed < new Date()) {
+                parsed = new Date();
+            }
             
             let type: CalendarEvent['type'] = 'job';
             if (t.appName.includes('Defcon')) type = 'shoot';
