@@ -1,13 +1,11 @@
 import { scanBusinesses } from '@/lib/scanner';
-import { fetchGlobalStats, fetchOmniTasks, fetchGlobalClients, ChartDataPoint, AppActivity } from '@/lib/db-clients';
+import { fetchGlobalStats, fetchOmniTasks, ChartDataPoint, AppActivity } from '@/lib/db-clients';
 import { DashboardContainer } from '@/components/DashboardContainer';
 
 export default async function Home() {
   const businesses = await scanBusinesses();
   const stats = await fetchGlobalStats();
   const tasks = await fetchOmniTasks();
-  const clients = await fetchGlobalClients();
-
   // Highlight all 4 core apps in the premium tier (with stable id for filters)
   const deployedApps = [
     { ...stats.auclaire, id: 'auclaire' as const },
@@ -56,7 +54,6 @@ export default async function Home() {
       businesses,
       stats,
       tasks,
-      clients,
       deployedApps,
       totalUsers,
       totalActivity,

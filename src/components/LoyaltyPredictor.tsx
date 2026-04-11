@@ -11,14 +11,20 @@ import {
     ArrowUpRight,
     Award
 } from 'lucide-react';
-import { OmniClient } from '@/lib/db-clients';
+import { EmpireContact, fetchOmniCRM } from '@/lib/db-clients';
 
-interface LoyaltyPredictorProps {
-    clients: OmniClient[];
-}
+export function LoyaltyPredictor() {
+    const [clients, setClients] = React.useState<EmpireContact[]>([]);
 
-export function LoyaltyPredictor({ clients }: LoyaltyPredictorProps) {
-    // Logic: Identify VIPs (e.g. active recently or multiple apps - mocked as first 4 for now)
+    React.useEffect(() => {
+        let mounted = true;
+        fetchOmniCRM().then(data => {
+            if (mounted) setClients(data);
+        });
+        return () => { mounted = false; };
+    }, []);
+
+    // Logic: Identify VIPs
     const vips = useMemo(() => {
         return clients.slice(0, 4).map(c => ({
             ...c,

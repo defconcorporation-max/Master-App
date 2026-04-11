@@ -36,9 +36,8 @@ import { GoalTracker } from '@/components/GoalTracker';
 import { EmpireAdvisor } from '@/components/EmpireAdvisor';
 import { CommunicationBridge } from '@/components/CommunicationBridge';
 import { TicketAggregator } from '@/components/TicketAggregator';
-import { DeployedAppCard } from '@/components/DeployedAppCard';
-import { OmniCRM } from '@/components/OmniCRM';
 import { BusinessCard } from '@/components/BusinessCard';
+import { DeployedAppCard } from '@/components/DeployedAppCard';
 import { GhostProtocol } from '@/components/GhostProtocol';
 import { GlobalFeatureFlags } from '@/components/GlobalFeatureFlags';
 import { LoyaltyPredictor } from '@/components/LoyaltyPredictor';
@@ -262,7 +261,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                         </div>
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                             <ComparativeAnalytics apps={filteredData.deployedApps} />
-                            <LoyaltyPredictor clients={filteredData.clients} />
+                            <LoyaltyPredictor />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <VentureSimulator />
