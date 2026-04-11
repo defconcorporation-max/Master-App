@@ -13,18 +13,18 @@ import {
     DollarSign,
     FileText,
     TrendingDown,
-    Camera
+    Camera,
+    Maximize2,
+    Minimize2
 } from 'lucide-react';
 import { 
     format, 
     startOfWeek, 
     endOfWeek, 
     eachDayOfInterval, 
-    isSameMonth, 
     isSameDay, 
     addWeeks,
-    subWeeks,
-    isValid
+    subWeeks
 } from 'date-fns';
 
 interface OmniCalendarProps {
@@ -44,6 +44,7 @@ interface CalendarEvent {
 
 export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     const startDate = startOfWeek(currentDate, { weekStartsOn: 1 }); // Start on Monday
     const endDate = endOfWeek(currentDate, { weekStartsOn: 1 });
@@ -125,113 +126,130 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
     const prevWeek = () => setCurrentDate(subWeeks(currentDate, 1));
     const today = () => setCurrentDate(new Date());
 
+    const wrapperClasses = isFullscreen 
+        ? "fixed inset-0 z-[100] p-4 sm:p-8 bg-slate-950/80 backdrop-blur-md animate-in fade-in" 
+        : "h-full";
+        
+    const containerClasses = isFullscreen
+        ? "flex flex-col h-full bg-slate-900 border border-slate-700/50 rounded-[2rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300"
+        : "flex flex-col h-full bg-black/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl";
+
     return (
-        <div className="flex flex-col h-full bg-black/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
-            {/* Header */}
-            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-black/50">
-                <div className="flex items-center gap-4">
-                    <div className="p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
-                        <CalendarIcon className="w-6 h-6 text-indigo-400" />
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-bold text-white tracking-tight">Global Agenda</h2>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-slate-400">Google Calendar Mode: Financials & Operations</span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        <div className={wrapperClasses}>
+            <div className={containerClasses}>
+                {/* Header */}
+                <div className="p-4 sm:p-6 border-b border-white/5 flex flex-wrap gap-4 items-center justify-between bg-black/50 shrink-0">
+                    <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
+                            <CalendarIcon className="w-6 h-6 text-indigo-400" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-white tracking-tight">Global Agenda</h2>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs text-slate-400">Google Calendar Mode: Financials & Operations</span>
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <div className="flex items-center gap-4">
-                    <button 
-                        onClick={today}
-                        className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-lg transition-colors border border-indigo-500/20"
-                    >
-                        Aujourd'hui
-                    </button>
-                    <div className="flex items-center bg-black/60 rounded-xl border border-white/5 p-1 px-2">
-                        <button onClick={prevWeek} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white">
-                            <ChevronLeft className="w-5 h-5" />
+                    
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={today}
+                            className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-lg transition-colors border border-indigo-500/20"
+                        >
+                            Aujourd'hui
                         </button>
-                        <h3 className="text-sm font-black tracking-widest uppercase text-white min-w-[200px] text-center">
-                            {format(startDate, 'd MMM')} — {format(endDate, 'd MMM yyyy')}
-                        </h3>
-                        <button onClick={nextWeek} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white">
-                            <ChevronRight className="w-5 h-5" />
+                        <div className="flex items-center bg-black/60 rounded-xl border border-white/5 p-1 px-2">
+                            <button onClick={prevWeek} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white">
+                                <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <h3 className="text-sm font-black tracking-widest uppercase text-white min-w-[200px] text-center">
+                                {format(startDate, 'd MMM')} — {format(endDate, 'd MMM yyyy')}
+                            </h3>
+                            <button onClick={nextWeek} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white">
+                                <ChevronRight className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <button 
+                            onClick={() => setIsFullscreen(!isFullscreen)}
+                            className="ml-2 p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white border border-white/5 hidden sm:block"
+                            title={isFullscreen ? "Minimize" : "Expand to Fullscreen"}
+                        >
+                            {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
                         </button>
                     </div>
                 </div>
-            </div>
 
-            {/* Calendar Grid (Weekly Mode) */}
-            <div className="flex-1 flex flex-col pt-4 px-4 pb-4 overflow-hidden">
-                <div className="grid grid-cols-7 mb-3 gap-3">
-                    {days.map(day => {
-                        const isToday = isSameDay(day, new Date());
-                        return (
-                            <div key={day.toString()} className="flex flex-col items-center">
-                                <span className={`text-[10px] font-black uppercase tracking-widest mb-1 ${isToday ? 'text-indigo-400' : 'text-slate-500'}`}>
-                                    {format(day, 'EEE')}
-                                </span>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isToday ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'text-slate-300'}`}>
-                                    {format(day, 'd')}
+                {/* Calendar Grid (Weekly Mode) */}
+                <div className="flex-1 flex flex-col pt-4 px-4 pb-4 overflow-hidden">
+                    <div className="grid grid-cols-7 mb-3 gap-3">
+                        {days.map(day => {
+                            const isToday = isSameDay(day, new Date());
+                            return (
+                                <div key={day.toString()} className="flex flex-col items-center">
+                                    <span className={`text-[10px] font-black uppercase tracking-widest mb-1 ${isToday ? 'text-indigo-400' : 'text-slate-500'}`}>
+                                        {format(day, 'EEE')}
+                                    </span>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isToday ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'text-slate-300'}`}>
+                                        {format(day, 'd')}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
-                
-                <div className="flex-1 grid grid-cols-7 gap-3">
-                    {days.map((day, idx) => {
-                        const isToday = isSameDay(day, new Date());
-                        
-                        const dayEvents = allEvents.filter(e => isSameDay(e.date, day));
+                            );
+                        })}
+                    </div>
+                    
+                    <div className="flex-1 grid grid-cols-7 gap-3">
+                        {days.map((day, idx) => {
+                            const isToday = isSameDay(day, new Date());
+                            
+                            const dayEvents = allEvents.filter(e => isSameDay(e.date, day));
 
-                        return (
-                            <div 
-                                key={day.toString() + idx} 
-                                className={`
-                                    h-full rounded-2xl flex flex-col border border-white/[0.02] bg-zinc-900/40 relative overflow-hidden
-                                    ${isToday ? 'bg-indigo-900/10 border-indigo-500/20 ring-1 ring-indigo-500/20' : ''}
-                                `}
-                            >
-                                <div className="flex-1 overflow-y-auto space-y-2 p-2 scrollbar-hide">
-                                    {dayEvents.length === 0 && (
-                                        <div className="flex items-center justify-center h-full opacity-0 hover:opacity-100 transition-opacity">
-                                            <span className="text-[10px] text-zinc-600 font-bold uppercase">No events</span>
-                                        </div>
-                                    )}
-                                    {dayEvents.map(event => {
-                                        const styles = getEventStyles(event);
-                                        return (
-                                            <div 
-                                                key={event.id} 
-                                                title={`${event.appName} - ${event.title}`}
-                                                className={`px-2.5 py-2 rounded-lg border-l-4 ${styles.bg} ${styles.border} flex flex-col group cursor-pointer hover:brightness-125 transition-all shadow-sm`}
-                                            >
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className={`flex items-center gap-1 ${styles.iconText}`}>
-                                                        {styles.icon}
-                                                        <span className="text-[8px] font-black uppercase tracking-wider line-clamp-1 max-w-[60px]">
-                                                            {event.appName.replace(/app/i, '').trim()}
-                                                        </span>
-                                                    </span>
-                                                    {typeof event.amount === 'number' && (
-                                                        <span className={`text-[10px] font-black ${styles.text}`}>
-                                                            ${event.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <span className={`text-xs font-semibold leading-tight ${styles.text} line-clamp-2`}>
-                                                    {event.title}
-                                                </span>
+                            return (
+                                <div 
+                                    key={day.toString() + idx} 
+                                    className={`
+                                        h-full rounded-2xl flex flex-col border border-white/[0.02] bg-zinc-900/40 relative overflow-hidden
+                                        ${isToday ? 'bg-indigo-900/10 border-indigo-500/20 ring-1 ring-indigo-500/20' : ''}
+                                    `}
+                                >
+                                    <div className="flex-1 overflow-y-auto space-y-2 p-2 scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20 scrollbar-track-transparent">
+                                        {dayEvents.length === 0 && (
+                                            <div className="flex items-center justify-center h-full opacity-0 hover:opacity-100 transition-opacity">
+                                                <span className="text-[10px] text-zinc-600 font-bold uppercase">No events</span>
                                             </div>
-                                        );
-                                    })}
+                                        )}
+                                        {dayEvents.map(event => {
+                                            const styles = getEventStyles(event);
+                                            return (
+                                                <div 
+                                                    key={event.id} 
+                                                    title={`${event.appName} - ${event.title}`}
+                                                    className={`px-2.5 py-2 rounded-lg border-l-4 ${styles.bg} ${styles.border} flex flex-col group cursor-pointer hover:brightness-125 transition-all shadow-sm`}
+                                                >
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <span className={`flex items-center gap-1 ${styles.iconText}`}>
+                                                            {styles.icon}
+                                                            <span className="text-[8px] font-black uppercase tracking-wider line-clamp-1 max-w-[60px]">
+                                                                {event.appName.replace(/app/i, '').trim()}
+                                                            </span>
+                                                        </span>
+                                                        {typeof event.amount === 'number' && (
+                                                            <span className={`text-[10px] font-black ${styles.text}`}>
+                                                                ${event.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className={`text-xs font-semibold leading-tight ${styles.text} line-clamp-2`}>
+                                                        {event.title}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </div>
