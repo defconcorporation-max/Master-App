@@ -21,7 +21,7 @@ import { useRouter } from 'next/navigation';
 
 
 // Components
-import { AISummary } from '@/components/AISummary';
+import { DailyCommandBriefing } from '@/components/DailyCommandBriefing';
 import { GlobalFinancialPortfolio } from '@/components/GlobalFinancialPortfolio';
 import { GlobalChart } from '@/components/GlobalChart';
 import { OmniKanban } from '@/components/OmniKanban';
@@ -52,7 +52,6 @@ import { ExportCSVButton, buildStatsCSV, downloadCSV } from '@/components/Export
 import { GoalsWidget } from '@/components/GoalsWidget';
 import { PeriodComparison } from '@/components/PeriodComparison';
 import { ProcessStatusPanel } from '@/components/ProcessStatusPanel';
-import { AttentionBlock } from '@/components/AttentionBlock';
 import { AppStats } from '@/lib/db-clients';
 
 type Tab = 'pulse' | 'ops' | 'strategy' | 'comms' | 'systems';
@@ -166,11 +165,14 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
             case 'pulse':
                 return (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <AttentionBlock
-                            deployedApps={filteredData.deployedApps}
-                            totalPending={filteredData.totalPending}
-                            appUrls={data.appUrls ?? { auclaire: '', defcon: '', antigravity: '', drs: '' }}
+                        {/* Intelligent Tactical Briefing taking priority over everything */}
+                        <DailyCommandBriefing 
+                            tasks={filteredData.tasks} 
+                            activities={filteredData.allActivities} 
+                            deployedApps={filteredData.deployedApps} 
+                            totalPending={filteredData.totalPending} 
                         />
+                        
                         <DashboardFilters
                             selectedApps={selectedApps}
                             dateRange={dateRange}
@@ -179,7 +181,6 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                             onDateRangeChange={setDateRange}
                             onViewModeChange={setViewMode}
                         />
-                        <AISummary apps={filteredData.deployedApps} />
                         <GlobalFinancialPortfolio 
                             totalCollected={filteredData.totalCollected} 
                             totalBilled={filteredData.totalBilled} 
