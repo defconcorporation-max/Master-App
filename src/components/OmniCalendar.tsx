@@ -333,136 +333,107 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                             </div>
                         </>
                     ) : (
-                        /* DAILY VIEW (Detailed View) */
+                        /* DAILY VIEW (Time-Grid View) */
                         <div className="flex-1 flex flex-col overflow-hidden bg-zinc-900/40 rounded-2xl border border-white/5 relative">
-                            <div className="absolute inset-0 overflow-y-auto p-4 md:p-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                                
-                                <div className="max-w-4xl mx-auto flex gap-6">
-                                    {/* Timeline Axis */}
-                                    <div className="hidden sm:flex flex-col items-center w-12 border-r border-white/5 pt-2">
-                                        <Clock className="w-5 h-5 text-slate-500 mb-4" />
-                                        <div className="w-[1px] h-full bg-gradient-to-b from-white/10 to-transparent" />
-                                    </div>
-                                    
-                                    {/* Detailed Events container */}
-                                    <div className="flex-1 space-y-4">
-                                        {(() => {
-                                            const todayEvents = fetchDayEvents(currentDate);
-                                            if (todayEvents.length === 0) {
-                                                return (
-                                                    <div className="flex flex-col items-center justify-center p-20 text-slate-500 border border-dashed border-white/10 rounded-2xl">
-                                                        <CalendarIcon className="w-10 h-10 mb-4 opacity-50" />
-                                                        <p className="font-bold tracking-widest uppercase text-sm">Zone dégagée</p>
-                                                        <p className="text-xs mt-1">Aucune opération ou transaction financière aujourd'hui.</p>
-                                                    </div>
-                                                );
-                                            }
+                            <div className="absolute inset-0 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                                <div className="flex flex-col min-w-max md:min-w-0">
+                                    {Array.from({ length: 24 }).map((_, hour) => {
+                                        const eventsInHour = fetchDayEvents(currentDate).filter(e => {
+                                            const eHour = new Date(e.date).getHours();
+                                            return eHour === hour;
+                                        });
 
-                                            return todayEvents.map((event, idx) => {
-                                                const styles = getEventStyles(event);
-                                                const isFinancial = event.kind === 'financial';
+                                        return (
+                                            <div key={hour} className="flex min-h-[60px] border-b border-white/5 group hover:bg-white/[0.02] transition-colors relative">
+                                                {/* Left Time Axis */}
+                                                <div className="w-16 sm:w-20 pt-2 pr-2 sm:pr-4 text-right border-r border-white/5 shrink-0 flex flex-col items-end">
+                                                    <span className={`text-[10px] sm:text-xs font-mono font-bold ${eventsInHour.length > 0 ? 'text-indigo-400' : 'text-slate-600'}`}>
+                                                        {hour.toString().padStart(2, '0')}:00
+                                                    </span>
+                                                </div>
 
-                                                if (isFinancial) {
-                                                    // Hyper compact finance row in Day view
-                                                    return (
-                                                        <div key={event.id} className="flex flex-col relative">
-                                                            {/* Line connecting to timeline axis */}
-                                                            <div className="absolute -left-6 top-1/2 w-4 h-[1px] bg-slate-700 hidden sm:block" />
-                                                            <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-black/40 hover:bg-black/60 transition-colors ml-0 sm:ml-4 group">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className={`p-1.5 rounded-lg border border-white/5 ${styles.bg}`}>
+                                                {/* Events Container for this Hour */}
+                                                <div className="flex-1 p-2 flex flex-col gap-2 relative">
+                                                    {eventsInHour.map(event => {
+                                                        const styles = getEventStyles(event);
+                                                        const isFinancial = event.kind === 'financial';
+                                                        const exactMinute = new Date(event.date).getMinutes();
+                                                        
+                                                        // Compact Financial Block
+                                                        if (isFinancial) {
+                                                            return (
+                                                                <div 
+                                                                    key={event.id}
+                                                                    title={event.title}
+                                                                    className={`px-3 py-1.5 rounded-lg border border-white/5 ${styles.bg} inline-flex items-center gap-3 hover:brightness-125 transition-all shadow-sm max-w-xl group/fin cursor-default`}
+                                                                >
+                                                                    <div className={`p-1 rounded-md border border-white/5 ${styles.highContrastBg}`}>
                                                                         {styles.icon}
                                                                     </div>
-                                                                    
-                                                                    <div className="flex items-center gap-3">
-                                                                        <span className="text-slate-400 font-mono text-xs hidden sm:block">
-                                                                            {format(event.date, 'HH:mm')}
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-[10px] sm:text-xs font-black uppercase text-slate-400 min-w-[36px]">
+                                                                            {hour.toString().padStart(2, '0')}:{exactMinute.toString().padStart(2, '0')}
                                                                         </span>
-                                                                        <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
-                                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${styles.text}`}>
+                                                                        <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-black/40 ${styles.text}`}>
                                                                             {event.appName}
                                                                         </span>
-                                                                        <span className="text-sm font-semibold text-slate-300">
+                                                                        <span className="text-[10px] sm:text-xs font-bold text-slate-300 truncate max-w-[150px] sm:max-w-xs">{event.title}</span>
+                                                                    </div>
+                                                                    {typeof event.amount === 'number' && (
+                                                                        <span className={`text-xs font-black ml-auto ${styles.text} drop-shadow-sm`}>
+                                                                            ${event.amount.toLocaleString()}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        // Compact Operational Card
+                                                        return (
+                                                            <div 
+                                                                key={event.id} 
+                                                                className={`p-2.5 sm:p-3 rounded-xl shadow-lg border-l-4 ${styles.bg} ${styles.border} flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-white/10 hover:brightness-110 transition-all max-w-4xl`}
+                                                            >
+                                                                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                                                                        <span className="text-[10px] sm:text-lg font-black font-mono text-white tracking-tighter">
+                                                                            {event.hasSpecificTime ? `${hour.toString().padStart(2, '0')}:${exactMinute.toString().padStart(2, '0')}` : hour.toString().padStart(2, '0') + ':00'}
+                                                                        </span>
+                                                                        <div className={`p-1.5 rounded-lg border border-white/10 shadow-inner ${styles.highContrastBg}`}>
+                                                                            {styles.icon}
+                                                                        </div>
+                                                                        <span className={`text-[8px] sm:text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border border-white/5 bg-black/40 ${styles.text}`}>
+                                                                            {event.appName}
+                                                                        </span>
+                                                                    </div>
+                                                                    
+                                                                    <div className="flex flex-col flex-1 min-w-0">
+                                                                        <span className="text-xs sm:text-sm font-black text-white tracking-tight truncate">
                                                                             {event.title}
                                                                         </span>
-                                                                    </div>
-                                                                </div>
-
-                                                                {typeof event.amount === 'number' && (
-                                                                    <div className="flex flex-col items-end">
-                                                                        <span className={`text-sm font-black ${styles.iconText} drop-shadow-md`}>
-                                                                            ${event.amount.toLocaleString()} USD
-                                                                        </span>
-                                                                        {event.type === 'expense' && <span className="text-[8px] text-red-500/60 uppercase font-black">Deduction</span>}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                }
-
-                                                // Giant Block Operational Event in Day view
-                                                return (
-                                                    <div key={event.id} className="relative py-2">
-                                                        <div className="absolute -left-6 top-6 w-4 h-[1px] bg-indigo-500/50 hidden sm:block" />
-                                                        <div className={`p-6 rounded-2xl shadow-xl ml-0 sm:ml-4 border-l-4 ${styles.bg} ${styles.border} group relative overflow-hidden border border-white/5`}>
-                                                            {/* Background glow fx */}
-                                                            <div className={`absolute top-0 right-0 w-32 h-32 blur-[60px] opacity-20 ${styles.highContrastBg} pointer-events-none`} />
-
-                                                            <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-4">
-                                                                <div className="flex-1 space-y-3">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className={`p-2 rounded-xl flex items-center gap-2 border border-white/10 shadow-lg ${styles.highContrastBg}`}>
-                                                                            {styles.icon}
-                                                                            <span className="text-[10px] font-black uppercase tracking-wider text-white">
-                                                                                {event.type}
-                                                                            </span>
-                                                                        </div>
-                                                                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border border-white/5 bg-black/40 ${styles.text}`}>
-                                                                            {event.appName}
-                                                                        </span>
-                                                                    </div>
-
-                                                                    <h3 className="text-2xl font-black text-white tracking-tight">
-                                                                        {event.title}
-                                                                    </h3>
-
-                                                                    <div className="flex flex-wrap items-center gap-4 pt-2">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <Clock className="w-4 h-4 text-slate-400" />
-                                                                            <span className="text-sm font-bold text-slate-300">
-                                                                                {event.hasSpecificTime ? format(event.date, 'HH:mm') : 'Heure non-spécifiée'}
-                                                                            </span>
-                                                                        </div>
                                                                         {event.endDate && event.date < event.endDate && (
-                                                                            <>
-                                                                                <div className="w-4 h-[1px] bg-slate-600" />
-                                                                                <span className="text-sm font-bold text-slate-300">
-                                                                                    {format(event.endDate, 'HH:mm')}
-                                                                                </span>
-                                                                            </>
+                                                                            <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">
+                                                                                Jusqu'à {format(event.endDate, 'HH:mm')}
+                                                                            </span>
                                                                         )}
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Status / Financial block if applicable inside the operation */}
-                                                                <div className="flex flex-col gap-3 min-w-[200px]">
-                                                                    {typeof event.amount === 'number' && event.amount > 0 && (
-                                                                        <div className="p-4 rounded-xl bg-black/40 border border-white/5">
-                                                                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-1">Budget Associé</span>
-                                                                            <span className="text-xl font-black text-emerald-400">
-                                                                                ${event.amount.toLocaleString()} USD
-                                                                            </span>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
+                                                                {typeof event.amount === 'number' && event.amount > 0 && (
+                                                                    <div className="px-3 py-1 sm:py-1.5 rounded-lg bg-black/40 border border-white/5 shrink-0 flex flex-col items-end">
+                                                                        <span className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Budget</span>
+                                                                        <span className="text-xs sm:text-sm font-black text-emerald-400">
+                                                                            ${event.amount.toLocaleString()}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            });
-                                        })()}
-                                    </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
