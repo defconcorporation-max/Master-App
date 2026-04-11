@@ -106,11 +106,14 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
     // 1. Fetch Auclaire (Supabase)
     if (supabase) {
         try {
-            // Get all clients to map their names locally
-            const { data: clientsData, error: userError } = await supabase.from('clients').select('id, name');
+            // Get all clients to map their names locally safely
+            const { data: clientsData, error: userError } = await supabase.from('clients').select('*');
             const clientMap = new Map<string, string>();
             if (clientsData) {
-                clientsData.forEach(c => clientMap.set(c.id, c.name));
+                clientsData.forEach(c => {
+                    const fullName = c.name || c.full_name || c.client_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Client Sans Nom';
+                    clientMap.set(c.id, fullName);
+                });
             }
             const userCount = clientsData ? clientsData.length : 0;
             
