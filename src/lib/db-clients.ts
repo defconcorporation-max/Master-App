@@ -106,8 +106,13 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
     // 1. Fetch Auclaire (Supabase)
     if (supabase) {
         try {
-            // Count clients for 'users'
-            const { count: userCount, error: userError } = await supabase.from('clients').select('*', { count: 'exact', head: true });
+            // Get all clients to map their names locally
+            const { data: clientsData, error: userError } = await supabase.from('clients').select('id, name');
+            const clientMap = new Map<string, string>();
+            if (clientsData) {
+                clientsData.forEach(c => clientMap.set(c.id, c.name));
+            }
+            const userCount = clientsData ? clientsData.length : 0;
             
             // Extract all invoices to calculate billed, collected, pending, and time-series
             const { data: invData, error: invError } = await supabase.from('invoices').select('*');
@@ -176,6 +181,9 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             const activities: AppActivity[] = [];
             if (invData) {
                 invData.forEach((inv, i) => {
+                    const clientId = inv.client_id || inv.clientId;
+                    const resolvedClientName = (clientId && clientMap.get(clientId)) ? clientMap.get(clientId) : (inv.client_name || inv.clientName || inv.customer_name || 'Client Inconnu');
+
                     if (inv.created_at) {
                         activities.push({
                             id: `auc-inv-c-${inv.created_at}-${Math.random()}`,
@@ -184,7 +192,8 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                             title: 'Invoice Issued',
                             description: `An invoice for $${inv.amount} was generated`,
                             amount: Number(inv.amount),
-                            date: new Date(inv.created_at).toISOString()
+                            date: new Date(inv.created_at).toISOString(),
+                            clientName: resolvedClientName
                         });
                     }
                     if (inv.status === 'paid' && inv.paid_at) {
@@ -196,7 +205,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                             description: `Payment of $${inv.amount_paid} collected`,
                             amount: Number(inv.amount_paid),
                             date: new Date(inv.paid_at).toISOString(),
-                            clientName: inv.client_name || inv.clientName || inv.customer_name || 'Client Inconnu',
+                            clientName: resolvedClientName,
                             metadata: inv.type || inv.description || (inv.amount_paid < inv.amount ? 'Deposit' : 'Full Payment')
                         });
                     }
