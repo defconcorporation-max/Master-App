@@ -732,14 +732,17 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
     // 2. Defcon (Shoots)
     if (turso) {
         try {
-            // Unsafe query replaced! Using SELECT * avoids crashing if strict columns (like 'date' or 'status') do not exist.
             const res = await turso.execute("SELECT * FROM shoots");
             res.rows.forEach(r => {
-                const dateRaw = String(r.date || r.shoot_date || r.created_at || r.createdAt || '');
+                let dateRaw = String(r.date || r.shoot_date || r.created_at || r.createdAt || '');
                 const endDateRaw = r.end_date || r.endDate || undefined;
-                // If it explicitly has 'T' and isn't just T00:00:00.000Z, or it contains a space (like '2024-01-01 14:00'), it has specific time
-                const hasTime = dateRaw.includes('T') && !dateRaw.includes('T00:00:00') || dateRaw.includes(' ');
                 
+                // If there's an explicit time column separate from date, merge it
+                const timeStr = String(r.time || r.start_time || r.shoot_time || '');
+                if (timeStr && timeStr !== 'undefined' && !dateRaw.includes('T')) {
+                    dateRaw = `${dateRaw.split(' ')[0]}T${timeStr}`;
+                }
+
                 tasks.push({
                     id: `def-${r.id || r.shoot_id || Math.random()}`,
                     appName: 'Defcon App',
@@ -750,7 +753,7 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                     endDate: endDateRaw ? new Date(String(endDateRaw)).toISOString() : undefined,
                     clientName: r.contact_name ? String(r.contact_name) : undefined,
                     budget: Number(r.budget || r.price || r.amount || 0),
-                    hasSpecificTime: hasTime
+                    hasSpecificTime: true // Shoots ALWAYS have a time constraint visually
                 });
             });
         } catch (e) {
