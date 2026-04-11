@@ -40,6 +40,8 @@ interface CalendarEvent {
     kind: 'financial' | 'operational';
     type: 'payment' | 'invoice' | 'expense' | 'shoot' | 'job' | 'travel' | 'design' | 'other';
     amount?: number;
+    endDate?: Date;
+    hasSpecificTime?: boolean;
 }
 
 export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
@@ -58,11 +60,17 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
             let parsed = new Date(t.date);
             const isInvalidDate = isNaN(parsed.getTime());
             
-            // Keep active tasks visible by anchoring past pending ones OR ones without a date to today
-            if (t.status !== 'done' && (isInvalidDate || parsed < new Date())) {
+            // Only fallback to today if we literally have no date at all for a pending task.
+            if (isInvalidDate && t.status !== 'done') {
                 parsed = new Date();
             } else if (isInvalidDate) {
-                return; // Cannot display a completed task that has no historical date
+                return;
+            }
+
+            let parsedEnd: Date | undefined;
+            if (t.endDate) {
+                parsedEnd = new Date(t.endDate);
+                if (isNaN(parsedEnd.getTime())) parsedEnd = undefined;
             }
             
             let type: CalendarEvent['type'] = 'job';
@@ -74,6 +82,8 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                 id: `op-${t.id}`,
                 title: t.title,
                 date: parsed,
+                endDate: parsedEnd,
+                hasSpecificTime: t.hasSpecificTime,
                 appName: t.appName,
                 kind: 'operational',
                 type
@@ -202,7 +212,20 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                         {days.map((day, idx) => {
                             const isToday = isSameDay(day, new Date());
                             
-                            const dayEvents = allEvents.filter(e => isSameDay(e.date, day));
+                            const dayEvents = allEvents.filter(e => {
+                                // Spanning multiday logic
+                                const eStart = new Date(e.date);
+                                eStart.setHours(0,0,0,0);
+                                const checkDay = new Date(day);
+                                checkDay.setHours(0,0,0,0);
+                                
+                                if (e.endDate) {
+                                    const eEnd = new Date(e.endDate);
+                                    eEnd.setHours(23,59,59,999);
+                                    return checkDay >= eStart && checkDay <= eEnd;
+                                }
+                                return isSameDay(e.date, day);
+                            });
 
                             return (
                                 <div 
@@ -229,9 +252,15 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                                                     <div className="flex items-center justify-between mb-1">
                                                         <span className={`flex items-center gap-1 ${styles.iconText}`}>
                                                             {styles.icon}
-                                                            <span className="text-[8px] font-black uppercase tracking-wider line-clamp-1 max-w-[60px]">
-                                                                {event.appName.replace(/app/i, '').trim()}
-                                                            </span>
+                                                            {event.hasSpecificTime ? (
+                                                                <span className="text-[9px] font-black tracking-widest uppercase">
+                                                                    {format(event.date, 'HH:mm')}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-[8px] font-black uppercase tracking-wider line-clamp-1 max-w-[60px]">
+                                                                    {event.appName.replace(/app/i, '').trim()}
+                                                                </span>
+                                                            )}
                                                         </span>
                                                         {typeof event.amount === 'number' && (
                                                             <span className={`text-[10px] font-black ${styles.text}`}>

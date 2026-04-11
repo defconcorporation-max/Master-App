@@ -689,6 +689,8 @@ export interface OmniTask {
     jewelryType?: string | null;  // Bague, Collier, Bracelet, etc.
     budget?: number;       // Sale price
     clientName?: string;
+    endDate?: string;
+    hasSpecificTime?: boolean;
 }
 
 export async function fetchOmniTasks(): Promise<OmniTask[]> {
@@ -718,7 +720,8 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                     stage: pStatus,
                     jewelryType: p.jewelry_type || null,
                     budget: Number(p.budget || p.amount || 0),
-                    clientName: p.client_name || p.clientName || undefined
+                    clientName: p.client_name || p.clientName || undefined,
+                    endDate: p.end_date || p.endDate || p.delivery_date || undefined
                 });
             });
         } catch (e) {
@@ -732,16 +735,22 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
             // Unsafe query replaced! Using SELECT * avoids crashing if strict columns (like 'date' or 'status') do not exist.
             const res = await turso.execute("SELECT * FROM shoots");
             res.rows.forEach(r => {
-                const dateRaw = r.date || r.shoot_date || r.created_at || r.createdAt;
+                const dateRaw = String(r.date || r.shoot_date || r.created_at || r.createdAt || '');
+                const endDateRaw = r.end_date || r.endDate || undefined;
+                // If it explicitly has 'T' and isn't just T00:00:00.000Z, or it contains a space (like '2024-01-01 14:00'), it has specific time
+                const hasTime = dateRaw.includes('T') && !dateRaw.includes('T00:00:00') || dateRaw.includes(' ');
+                
                 tasks.push({
                     id: `def-${r.id || r.shoot_id || Math.random()}`,
                     appName: 'Defcon App',
                     title: String(r.title || r.name || 'Untitled Shoot'),
                     status: String(r.status || r.state || 'in_progress').toLowerCase().includes('done') ? 'done' : 'in_progress',
                     priority: 'high',
-                    date: dateRaw ? String(dateRaw) : new Date().toISOString(), // Fallback directly preventing NaN/invalid parsing later
+                    date: dateRaw ? new Date(dateRaw).toISOString() : new Date().toISOString(), // Fallback directly preventing NaN/invalid parsing later
+                    endDate: endDateRaw ? new Date(String(endDateRaw)).toISOString() : undefined,
                     clientName: r.contact_name ? String(r.contact_name) : undefined,
-                    budget: Number(r.budget || r.price || r.amount || 0)
+                    budget: Number(r.budget || r.price || r.amount || 0),
+                    hasSpecificTime: hasTime
                 });
             });
         } catch (e) {
