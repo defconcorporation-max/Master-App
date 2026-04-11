@@ -106,26 +106,41 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
     // 1. Fetch Auclaire (Supabase)
     if (supabase) {
         try {
-            // Get all clients to map their names locally safely
-            // In Auclaire, try 'clients' first, then 'users' if empty/error. Never crash the app.
-            let clientsData: any[] | null = null;
+            // In Auclaire, invoices might be linked to 'projects', 'clients', or 'users'.
+            // Let's fetch all of them and build a Universal ID Resolver.
             let userCount = 0;
+            const clientMap = new Map<string, any>();
+            
             const resClients = await supabase.from('clients').select('*');
-            if (resClients.data && resClients.data.length > 0) {
-                clientsData = resClients.data;
-            } else {
-                const resUsers = await supabase.from('users').select('*');
-                if (resUsers.data) clientsData = resUsers.data;
+            const resUsers = await supabase.from('users').select('*');
+            const resProjects = await supabase.from('projects').select('*');
+
+            if (resClients.data) {
+                resClients.data.forEach((c: any) => clientMap.set(c.id, { ...c, _type: 'client' }));
+                userCount = resClients.data.length;
+            }
+            if (resUsers.data) {
+                resUsers.data.forEach((u: any) => clientMap.set(u.id, { ...u, _type: 'user' }));
+                if (userCount === 0) userCount = resUsers.data.length;
+            }
+            if (resProjects.data) {
+                resProjects.data.forEach((p: any) => clientMap.set(p.id, { ...p, _type: 'project' }));
             }
             
-            const clientMap = new Map<string, string>();
-            if (clientsData) {
-                clientsData.forEach(c => {
-                    const fullName = c.name || c.full_name || c.client_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Client Sans Nom';
-                    clientMap.set(c.id, fullName);
-                });
-                userCount = clientsData.length;
-            }
+            // Helper to dig out a name from any entity ID
+            const resolveName = (id: any): string | null => {
+                if (!id) return null;
+                const entity = clientMap.get(id);
+                if (!entity) return null;
+                if (entity.name || entity.full_name || entity.client_name || entity.first_name) {
+                    return entity.name || entity.full_name || entity.client_name || [entity.first_name, entity.last_name].filter(Boolean).join(' ');
+                }
+                if (entity._type === 'project') {
+                    // Try to resolve the client of this project
+                    return resolveName(entity.client_id || entity.clientId || entity.user_id) || entity.title || entity.name;
+                }
+                return null;
+            };
             
             // Extract all invoices to calculate billed, collected, pending, and time-series
             const { data: invData, error: invError } = await supabase.from('invoices').select('*');
@@ -194,8 +209,11 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             const activities: AppActivity[] = [];
             if (invData) {
                 invData.forEach((inv, i) => {
-                    const clientId = inv.client_id || inv.clientId || inv.user_id || inv.userId || inv.customer_id;
-                    const resolvedClientName = (clientId && clientMap.get(clientId)) ? clientMap.get(clientId) : (inv.client_name || inv.clientName || inv.customer_name || 'Client Inconnu');
+                    // Invoices might link directly to client/user, or to a project! 
+                    const linkedId = inv.client_id || inv.clientId || inv.user_id || inv.userId || inv.customer_id || inv.project_id || inv.projectId;
+                    
+                    // Attempt resolution via lookup, or use hardcoded name directly on invoice
+                    const resolvedClientName = resolveName(linkedId) || (inv.client_name || inv.clientName || inv.customer_name || 'Client Inconnu');
 
                     if (inv.created_at) {
                         activities.push({
