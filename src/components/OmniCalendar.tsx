@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { OmniTask } from '@/lib/db-clients';
+import React, { useState, useMemo } from 'react';
+import { OmniTask, AppActivity } from '@/lib/db-clients';
 import { 
     ChevronLeft, 
     ChevronRight, 
@@ -9,7 +9,11 @@ import {
     MapPin,
     Clock,
     Zap,
-    Briefcase
+    Briefcase,
+    DollarSign,
+    FileText,
+    TrendingDown,
+    Camera
 } from 'lucide-react';
 import { 
     format, 
@@ -20,35 +24,93 @@ import {
     isSameDay, 
     addWeeks,
     subWeeks,
-    parseISO
+    parseISO,
+    isValid
 } from 'date-fns';
 
 interface OmniCalendarProps {
     tasks: OmniTask[];
+    activities?: AppActivity[];
 }
 
-export function OmniCalendar({ tasks }: OmniCalendarProps) {
+interface CalendarEvent {
+    id: string;
+    title: string;
+    date: Date;
+    appName: string;
+    kind: 'financial' | 'operational';
+    type: 'payment' | 'invoice' | 'expense' | 'shoot' | 'job' | 'travel' | 'other';
+    amount?: number;
+}
+
+export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const startDate = startOfWeek(currentDate, { weekStartsOn: 1 }); // Start on Monday
     const endDate = endOfWeek(currentDate, { weekStartsOn: 1 });
-    
     const days = eachDayOfInterval({ start: startDate, end: endDate });
 
-    const getAppTag = (appName: string) => {
-        if (appName.includes('Auclaire')) return { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' };
-        if (appName.includes('Defcon')) return { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' };
-        if (appName.includes('Viva')) return { bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/20' };
-        if (appName.includes('DRS')) return { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/20' };
-        return { bg: 'bg-zinc-500/10', text: 'text-zinc-400', border: 'border-zinc-500/20' };
-    };
+    const allEvents = useMemo(() => {
+        const events: CalendarEvent[] = [];
 
-    const getIconForApp = (appName: string) => {
-        if (appName.includes('Auclaire')) return <Briefcase className="w-3 h-3" />;
-        if (appName.includes('Defcon')) return <Clock className="w-3 h-3" />;
-        if (appName.includes('Viva')) return <MapPin className="w-3 h-3" />;
-        if (appName.includes('DRS')) return <Zap className="w-3 h-3" />;
-        return <CalendarIcon className="w-3 h-3" />;
+        // 1. Add Operational Tasks (Excluding Auclaire to reduce clutter, keeping only Shoots, Jobs, Travel)
+        tasks.filter(t => !t.appName.includes('Auclaire')).forEach(t => {
+            const parsed = parseISO(t.date);
+            if (!isValid(parsed)) return;
+            
+            let type: CalendarEvent['type'] = 'job';
+            if (t.appName.includes('Defcon')) type = 'shoot';
+            if (t.appName.includes('Viva')) type = 'travel';
+
+            events.push({
+                id: `op-${t.id}`,
+                title: t.title,
+                date: parsed,
+                appName: t.appName,
+                kind: 'operational',
+                type
+            });
+        });
+
+        // 2. Add Financial Activities
+        activities.forEach(a => {
+            const parsed = parseISO(a.date);
+            if (!isValid(parsed)) return;
+
+            let type: CalendarEvent['type'] = 'other';
+            if (a.type === 'payment_collected') type = 'payment';
+            else if (a.type === 'invoice_created') type = 'invoice';
+            else if (a.type === 'expense_logged' || a.type === 'commission_paid') type = 'expense';
+
+            events.push({
+                id: `fin-${a.id}`,
+                title: a.title,
+                date: parsed,
+                appName: a.appName,
+                kind: 'financial',
+                type,
+                amount: a.amount
+            });
+        });
+
+        // Sort events: Financials first, then Operational
+        return events.sort((a, b) => {
+            if (a.kind !== b.kind) return a.kind === 'financial' ? -1 : 1;
+            return a.title.localeCompare(b.title);
+        });
+    }, [tasks, activities]);
+
+    const getEventStyles = (event: CalendarEvent) => {
+        if (event.kind === 'financial') {
+            if (event.type === 'payment') return { bg: 'bg-emerald-500/20', border: 'border-l-emerald-500', text: 'text-emerald-100', iconText: 'text-emerald-400', icon: <DollarSign className="w-3 h-3" /> };
+            if (event.type === 'invoice') return { bg: 'bg-blue-500/20', border: 'border-l-blue-500', text: 'text-blue-100', iconText: 'text-blue-400', icon: <FileText className="w-3 h-3" /> };
+            if (event.type === 'expense') return { bg: 'bg-red-500/20', border: 'border-l-red-500', text: 'text-red-100', iconText: 'text-red-400', icon: <TrendingDown className="w-3 h-3" /> };
+        } else {
+            if (event.type === 'shoot') return { bg: 'bg-amber-500/20', border: 'border-l-amber-500', text: 'text-amber-100', iconText: 'text-amber-400', icon: <Camera className="w-3 h-3" /> };
+            if (event.type === 'travel') return { bg: 'bg-purple-500/20', border: 'border-l-purple-500', text: 'text-purple-100', iconText: 'text-purple-400', icon: <MapPin className="w-3 h-3" /> };
+            if (event.type === 'job') return { bg: 'bg-slate-500/20', border: 'border-l-slate-500', text: 'text-slate-100', iconText: 'text-slate-400', icon: <Zap className="w-3 h-3" /> };
+        }
+        return { bg: 'bg-zinc-500/20', border: 'border-l-zinc-500', text: 'text-zinc-100', iconText: 'text-zinc-400', icon: <CalendarIcon className="w-3 h-3" /> };
     };
 
     const nextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
@@ -56,9 +118,9 @@ export function OmniCalendar({ tasks }: OmniCalendarProps) {
     const today = () => setCurrentDate(new Date());
 
     return (
-        <div className="flex flex-col h-full bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+        <div className="flex flex-col h-full bg-black/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
             {/* Header */}
-            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-black/20">
+            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-black/50">
                 <div className="flex items-center gap-4">
                     <div className="p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
                         <CalendarIcon className="w-6 h-6 text-indigo-400" />
@@ -66,8 +128,8 @@ export function OmniCalendar({ tasks }: OmniCalendarProps) {
                     <div>
                         <h2 className="text-xl font-bold text-white tracking-tight">Global Agenda</h2>
                         <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-slate-400">Empire-wide operations and events</span>
-                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                            <span className="text-xs text-slate-400">Google Calendar Mode: Financials & Operations</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         </div>
                     </div>
                 </div>
@@ -77,14 +139,14 @@ export function OmniCalendar({ tasks }: OmniCalendarProps) {
                         onClick={today}
                         className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-lg transition-colors border border-indigo-500/20"
                     >
-                        Today
+                        Aujourd'hui
                     </button>
-                    <div className="flex items-center bg-black/40 rounded-xl border border-white/5 p-1">
+                    <div className="flex items-center bg-black/60 rounded-xl border border-white/5 p-1 px-2">
                         <button onClick={prevWeek} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white">
                             <ChevronLeft className="w-5 h-5" />
                         </button>
-                        <h3 className="text-sm font-black tracking-widest uppercase text-white min-w-[180px] text-center">
-                            {format(startDate, 'MMM d')} - {format(endDate, 'MMM d, yyyy')}
+                        <h3 className="text-sm font-black tracking-widest uppercase text-white min-w-[200px] text-center">
+                            {format(startDate, 'd MMM')} — {format(endDate, 'd MMM yyyy')}
                         </h3>
                         <button onClick={nextWeek} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white">
                             <ChevronRight className="w-5 h-5" />
@@ -93,76 +155,68 @@ export function OmniCalendar({ tasks }: OmniCalendarProps) {
                 </div>
             </div>
 
-            {/* Calendar Grid */}
-            <div className="flex-1 flex flex-col p-6 overflow-hidden">
-                <div className="grid grid-cols-7 mb-2">
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                        <div key={day} className="text-center text-[10px] font-black uppercase tracking-widest text-slate-500 py-2">
-                            {day}
-                        </div>
-                    ))}
+            {/* Calendar Grid (Weekly Mode) */}
+            <div className="flex-1 flex flex-col pt-4 px-4 pb-4 overflow-hidden">
+                <div className="grid grid-cols-7 mb-3 gap-3">
+                    {days.map(day => {
+                        const isToday = isSameDay(day, new Date());
+                        return (
+                            <div key={day.toString()} className="flex flex-col items-center">
+                                <span className={`text-[10px] font-black uppercase tracking-widest mb-1 ${isToday ? 'text-indigo-400' : 'text-slate-500'}`}>
+                                    {format(day, 'EEE')}
+                                </span>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isToday ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'text-slate-300'}`}>
+                                    {format(day, 'd')}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
                 
-                <div className="flex-1 grid grid-cols-7 grid-rows-1 gap-3">
+                <div className="flex-1 grid grid-cols-7 gap-3">
                     {days.map((day, idx) => {
-                        const isCurrentMonth = isSameMonth(day, currentDate);
                         const isToday = isSameDay(day, new Date());
                         
-                        // Find tasks for this day
-                        const dayTasks = tasks.filter(t => {
-                            try {
-                                const tDate = parseISO(t.date);
-                                return isSameDay(tDate, day);
-                            } catch (e) {
-                                return false; // Skip invalid dates
-                            }
-                        });
+                        const dayEvents = allEvents.filter(e => isSameDay(e.date, day));
 
                         return (
                             <div 
                                 key={day.toString() + idx} 
                                 className={`
-                                    h-full rounded-xl p-3 flex flex-col border transition-all duration-200
-                                    ${isCurrentMonth ? 'bg-slate-800/20 border-white/5 hover:border-white/10' : 'bg-transparent border-transparent opacity-40'}
-                                    ${isToday ? 'ring-1 ring-indigo-500/50 bg-indigo-500/5' : ''}
+                                    h-full rounded-2xl flex flex-col border border-white/[0.02] bg-zinc-900/40 relative overflow-hidden
+                                    ${isToday ? 'bg-indigo-900/10 border-indigo-500/20 ring-1 ring-indigo-500/20' : ''}
                                 `}
                             >
-                                <div className="flex items-center justify-between mb-2 px-1">
-                                    <span className={`text-xs font-bold ${isToday ? 'text-indigo-400' : 'text-slate-400'}`}>
-                                        {format(day, 'd')}
-                                    </span>
-                                    {dayTasks.length > 0 && (
-                                        <span className="text-[9px] font-black shrink-0 px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-400">
-                                            {dayTasks.length}
-                                        </span>
+                                <div className="flex-1 overflow-y-auto space-y-2 p-2 scrollbar-hide">
+                                    {dayEvents.length === 0 && (
+                                        <div className="flex items-center justify-center h-full opacity-0 hover:opacity-100 transition-opacity">
+                                            <span className="text-[10px] text-zinc-600 font-bold uppercase">No events</span>
+                                        </div>
                                     )}
-                                </div>
-                                <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 scrollbar-hide">
-                                    {dayTasks.map(task => {
-                                        const theme = getAppTag(task.appName);
-                                        const icon = getIconForApp(task.appName);
+                                    {dayEvents.map(event => {
+                                        const styles = getEventStyles(event);
                                         return (
                                             <div 
-                                                key={task.id} 
-                                                title={task.title}
-                                                className={`px-2 py-1.5 rounded-lg border ${theme.bg} ${theme.border} group cursor-pointer hover:opacity-80 transition-opacity`}
+                                                key={event.id} 
+                                                title={`${event.appName} - ${event.title}`}
+                                                className={`px-2.5 py-2 rounded-lg border-l-4 ${styles.bg} ${styles.border} flex flex-col group cursor-pointer hover:brightness-125 transition-all shadow-sm`}
                                             >
-                                                <div className="flex items-center justify-between gap-1 mb-1">
-                                                    <span className={`text-[8px] font-black uppercase tracking-wider ${theme.text} line-clamp-1`}>
-                                                        {task.appName}
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className={`flex items-center gap-1 ${styles.iconText}`}>
+                                                        {styles.icon}
+                                                        <span className="text-[8px] font-black uppercase tracking-wider line-clamp-1 max-w-[60px]">
+                                                            {event.appName.replace(/app/i, '').trim()}
+                                                        </span>
                                                     </span>
-                                                    <span className={theme.text}>
-                                                        {icon}
-                                                    </span>
+                                                    {typeof event.amount === 'number' && (
+                                                        <span className={`text-[10px] font-black ${styles.text}`}>
+                                                            ${event.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <p className="text-[10px] font-semibold text-white/90 leading-tight line-clamp-2 truncate">
-                                                    {task.title}
-                                                </p>
-                                                {task.stage && (
-                                                    <p className="text-[9px] text-white/40 mt-0.5 truncate uppercase tracking-widest font-medium">
-                                                        {task.stage.replace('_', ' ')}
-                                                    </p>
-                                                )}
+                                                <span className={`text-xs font-semibold leading-tight ${styles.text} line-clamp-2`}>
+                                                    {event.title}
+                                                </span>
                                             </div>
                                         );
                                     })}

@@ -96,8 +96,9 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
             apps.flatMap((a) => (a.chartData ?? [])),
             dateRange
         );
+        const allActivities = apps.flatMap((a) => (a.activityFeed ?? []));
         const activityFeed = filterActivityByDateRange(
-            apps.flatMap((a) => (a.activityFeed ?? [])),
+            allActivities,
             dateRange
         ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20);
         const totalBilled = apps.reduce((s, a) => s + (a.financials?.billed ?? 0), 0);
@@ -111,6 +112,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
             deployedApps: apps,
             globalChartData: chartData,
             globalActivityFeed: activityFeed,
+            allActivities,
             totalBilled,
             totalCollected,
             totalPending,
@@ -233,7 +235,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                             {opsView === 'board' ? (
                                 <OmniKanban tasks={filteredData.tasks} />
                             ) : (
-                                <OmniCalendar tasks={filteredData.tasks} />
+                                <OmniCalendar tasks={filteredData.tasks} activities={filteredData.allActivities} />
                             )}
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
