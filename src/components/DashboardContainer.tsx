@@ -61,7 +61,6 @@ interface DashboardContainerProps {
         businesses: any[];
         stats: any;
         tasks: any[];
-        clients: any[];
         deployedApps: AppStats[];
         totalUsers: number;
         totalActivity: number;
@@ -121,7 +120,6 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
             totalActivity,
             stats: { ...data.stats, auclaire: apps.find((a) => a.id === 'auclaire') ?? data.stats.auclaire, defcon: apps.find((a) => a.id === 'defcon') ?? data.stats.defcon, antigravity: apps.find((a) => a.id === 'antigravity') ?? data.stats.antigravity, drs: apps.find((a) => a.id === 'drs') ?? data.stats.drs },
             tasks: data.tasks,
-            clients: data.clients,
         };
     }, [data, selectedApps, dateRange]);
 
