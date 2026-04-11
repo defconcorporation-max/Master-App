@@ -24,7 +24,6 @@ import {
     isSameDay, 
     addWeeks,
     subWeeks,
-    parseISO,
     isValid
 } from 'date-fns';
 
@@ -39,7 +38,7 @@ interface CalendarEvent {
     date: Date;
     appName: string;
     kind: 'financial' | 'operational';
-    type: 'payment' | 'invoice' | 'expense' | 'shoot' | 'job' | 'travel' | 'other';
+    type: 'payment' | 'invoice' | 'expense' | 'shoot' | 'job' | 'travel' | 'design' | 'other';
     amount?: number;
 }
 
@@ -53,14 +52,15 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
     const allEvents = useMemo(() => {
         const events: CalendarEvent[] = [];
 
-        // 1. Add Operational Tasks (Excluding Auclaire to reduce clutter, keeping only Shoots, Jobs, Travel)
-        tasks.filter(t => !t.appName.includes('Auclaire')).forEach(t => {
-            const parsed = parseISO(t.date);
-            if (!isValid(parsed)) return;
+        // 1. Add Operational Tasks
+        tasks.forEach(t => {
+            const parsed = new Date(t.date);
+            if (isNaN(parsed.getTime())) return;
             
             let type: CalendarEvent['type'] = 'job';
             if (t.appName.includes('Defcon')) type = 'shoot';
             if (t.appName.includes('Viva')) type = 'travel';
+            if (t.appName.includes('Auclaire')) type = 'design';
 
             events.push({
                 id: `op-${t.id}`,
@@ -74,8 +74,8 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
 
         // 2. Add Financial Activities
         activities.forEach(a => {
-            const parsed = parseISO(a.date);
-            if (!isValid(parsed)) return;
+            const parsed = new Date(a.date);
+            if (isNaN(parsed.getTime())) return;
 
             let type: CalendarEvent['type'] = 'other';
             if (a.type === 'payment_collected') type = 'payment';
@@ -109,6 +109,7 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
             if (event.type === 'shoot') return { bg: 'bg-amber-500/20', border: 'border-l-amber-500', text: 'text-amber-100', iconText: 'text-amber-400', icon: <Camera className="w-3 h-3" /> };
             if (event.type === 'travel') return { bg: 'bg-purple-500/20', border: 'border-l-purple-500', text: 'text-purple-100', iconText: 'text-purple-400', icon: <MapPin className="w-3 h-3" /> };
             if (event.type === 'job') return { bg: 'bg-slate-500/20', border: 'border-l-slate-500', text: 'text-slate-100', iconText: 'text-slate-400', icon: <Zap className="w-3 h-3" /> };
+            if (event.type === 'design') return { bg: 'bg-cyan-500/20', border: 'border-l-cyan-500', text: 'text-cyan-100', iconText: 'text-cyan-400', icon: <Briefcase className="w-3 h-3" /> };
         }
         return { bg: 'bg-zinc-500/20', border: 'border-l-zinc-500', text: 'text-zinc-100', iconText: 'text-zinc-400', icon: <CalendarIcon className="w-3 h-3" /> };
     };
