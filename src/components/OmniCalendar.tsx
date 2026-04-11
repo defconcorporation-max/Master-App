@@ -223,7 +223,7 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                 </div>
 
                 {/* Grid Layout (Header Days) */}
-                <div className="flex border-b border-white/10 bg-black/20 shrink-0 pr-2">
+                <div className="flex border-b border-white/5 bg-black/20 shrink-0 pr-2">
                     <div className="w-[50px] shrink-0 border-r border-white/5" /> {/* Empty corner for time axis */}
                     <div className="flex-1 grid grid-cols-7">
                         {days.map(day => {
@@ -238,6 +238,34 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                                     </div>
                                 </div>
                             );
+                        })}
+                    </div>
+                </div>
+
+                {/* All-Day / General Events Zone */}
+                <div className="flex border-b border-white/10 shrink-0 pr-2 bg-zinc-900/60 shadow-md z-30">
+                    <div className="w-[50px] shrink-0 border-r border-white/5 flex items-center justify-center p-1">
+                        <span className="text-[7.5px] font-black text-slate-500 uppercase -rotate-90 tracking-widest opacity-60">Général</span>
+                    </div>
+                    <div className="flex-1 grid grid-cols-7">
+                        {days.map(day => {
+                            const allDayEvents = fetchDayEvents(day).filter(e => !e.hasSpecificTime && e.kind !== 'financial');
+                            return (
+                                <div key={`allday-${day.toString()}`} className="border-r border-white/5 last:border-r-0 p-1 flex flex-col gap-1 min-h-[40px] max-h-[120px] overflow-y-auto scrollbar-thin scrollbar-thumb-white/10">
+                                    {allDayEvents.map(event => {
+                                        const styles = getEventStyles(event);
+                                        return (
+                                            <div 
+                                                key={`ad-${event.id}`} 
+                                                title={`${event.appName} - ${event.title}`}
+                                                className={`px-1.5 py-1 rounded text-[9px] font-bold truncate ${styles.bg} border-l-[3px] text-white shadow-sm cursor-pointer hover:brightness-125 transition-all`}
+                                            >
+                                                {event.title}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )
                         })}
                     </div>
                 </div>
@@ -267,13 +295,13 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
 
                             {/* Daily event columns */}
                             {days.map(day => {
-                                const dayEvents = fetchDayEvents(day);
+                                const timedEvents = fetchDayEvents(day).filter(e => e.hasSpecificTime || e.kind === 'financial');
                                 return (
                                     <div 
                                         key={`col-${day.toString()}`} 
                                         className="relative border-r border-white/5 last:border-r-0 h-[1152px]" // 24 * 48px
                                     >
-                                        {dayEvents.map((event, idx) => {
+                                        {timedEvents.map((event, idx) => {
                                             const styles = getEventStyles(event);
                                             const topOffset = calculateTop(new Date(event.date));
                                             const isFinancial = event.kind === 'financial';
