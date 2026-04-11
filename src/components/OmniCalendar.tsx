@@ -417,21 +417,24 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                                 </div>
                             </div>
 
+                            {/* Global Context (Client / Project Bindings) */}
+                            {(selectedEvent.rawTask?.clientName || selectedEvent.rawActivity?.clientName) && (
+                                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                                        <User className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Entité Cible Principale</p>
+                                        <p className="text-sm text-slate-200 font-semibold">
+                                            {selectedEvent.rawTask?.clientName || selectedEvent.rawActivity?.clientName}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Additional OmniTask Metadata */}
                             {selectedEvent.rawTask && (
                                 <div className="grid grid-cols-2 gap-3">
-                                    {selectedEvent.rawTask.clientName && (
-                                        <div className="col-span-2 p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
-                                                <User className="w-4 h-4" />
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Client Associé</p>
-                                                <p className="text-sm text-slate-200 font-semibold">{selectedEvent.rawTask.clientName}</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                    
                                     <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center gap-2">
                                         <Tag className="w-4 h-4 text-slate-400" />
                                         <div>
@@ -476,9 +479,13 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                                         </div>
                                     )}
                                     {selectedEvent.rawActivity.metadata && (
-                                        <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold flex items-center gap-2">
-                                            <AlertCircle className="w-4 h-4" />
-                                            {selectedEvent.rawActivity.metadata}
+                                        <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex flex-col gap-1">
+                                            <div className="flex items-center gap-2 text-[10px] text-indigo-400 uppercase tracking-widest font-bold">
+                                                <AlertCircle className="w-3 h-3" /> Metadonnées de Transaction
+                                            </div>
+                                            <p className="text-sm font-semibold text-indigo-200">
+                                                {selectedEvent.rawActivity.metadata}
+                                            </p>
                                         </div>
                                     )}
                                 </div>
