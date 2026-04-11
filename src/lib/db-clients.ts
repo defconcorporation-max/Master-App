@@ -107,7 +107,8 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
     if (supabase) {
         try {
             // Get all clients to map their names locally safely
-            const { data: clientsData, error: userError } = await supabase.from('clients').select('*');
+            // In Auclaire, clients are stored in the 'users' table!
+            const { data: clientsData, error: userError } = await supabase.from('users').select('*');
             const clientMap = new Map<string, string>();
             if (clientsData) {
                 clientsData.forEach(c => {
@@ -184,7 +185,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             const activities: AppActivity[] = [];
             if (invData) {
                 invData.forEach((inv, i) => {
-                    const clientId = inv.client_id || inv.clientId;
+                    const clientId = inv.client_id || inv.clientId || inv.user_id || inv.userId || inv.customer_id;
                     const resolvedClientName = (clientId && clientMap.get(clientId)) ? clientMap.get(clientId) : (inv.client_name || inv.clientName || inv.customer_name || 'Client Inconnu');
 
                     if (inv.created_at) {

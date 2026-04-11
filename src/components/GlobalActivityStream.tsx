@@ -115,11 +115,15 @@ export function GlobalActivityStream({ allStats }: GlobalActivityStreamProps) {
                                 </p>
                                 
                                 <div className="mt-2 flex items-center gap-2 flex-wrap">
-                                    {activity.amount && (
-                                        <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-[10px] font-bold">
-                                            + ${activity.amount.toLocaleString()}
+                                    {activity.amount ? (
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                            (activity.type === 'expense_logged' || activity.type === 'commission_paid') 
+                                                ? 'bg-red-500/10 text-red-400' 
+                                                : (activity.type === 'invoice_created' ? 'bg-blue-500/10 text-blue-400' : 'bg-emerald-500/10 text-emerald-400')
+                                        }`}>
+                                            {(activity.type === 'expense_logged' || activity.type === 'commission_paid') ? '- ' : '+ '}${activity.amount.toLocaleString()}
                                         </span>
-                                    )}
+                                    ) : null}
                                     {activity.metadata && (
                                         <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded text-[10px] font-medium border border-white/5 uppercase">
                                             {activity.metadata}
