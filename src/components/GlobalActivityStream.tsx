@@ -102,17 +102,30 @@ export function GlobalActivityStream({ allStats }: GlobalActivityStreamProps) {
                                 <h3 className="text-sm font-semibold text-white group-hover:text-blue-300 transition-colors">
                                     {activity.title}
                                 </h3>
-                                <p className="text-xs text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                                
+                                {activity.clientName && (
+                                    <div className="mt-1 flex items-center gap-1.5 text-xs text-blue-200 bg-blue-500/10 w-fit px-2 py-0.5 rounded border border-blue-500/20">
+                                        <Briefcase className="w-3 h-3" />
+                                        <span className="font-medium">{activity.clientName}</span>
+                                    </div>
+                                )}
+
+                                <p className="text-xs text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">
                                     {activity.description}
                                 </p>
                                 
-                                {activity.amount && (
-                                    <div className="mt-2 flex items-center gap-1">
+                                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                    {activity.amount && (
                                         <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded text-[10px] font-bold">
-                                            + ${activity.amount}
+                                            + ${activity.amount.toLocaleString()}
                                         </span>
-                                    </div>
-                                )}
+                                    )}
+                                    {activity.metadata && (
+                                        <span className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded text-[10px] font-medium border border-white/5 uppercase">
+                                            {activity.metadata}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Timeline dot */}

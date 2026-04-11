@@ -54,6 +54,8 @@ export interface AppActivity {
     description: string;
     amount?: number;
     date: string; // ISO string for sorting
+    clientName?: string;
+    metadata?: string; // Information about payment type (deposit vs full), invoice description, etc.
 }
 
 export interface SearchResult {
@@ -108,7 +110,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             const { count: userCount, error: userError } = await supabase.from('clients').select('*', { count: 'exact', head: true });
             
             // Extract all invoices to calculate billed, collected, pending, and time-series
-            const { data: invData, error: invError } = await supabase.from('invoices').select('amount, amount_paid, created_at, paid_at, status');
+            const { data: invData, error: invError } = await supabase.from('invoices').select('*');
             
             // Extract all expenses
             const { data: expData, error: expError } = await supabase.from('expenses').select('amount, date, status, created_at, category');
@@ -193,7 +195,9 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                             title: 'Payment Received',
                             description: `Payment of $${inv.amount_paid} collected`,
                             amount: Number(inv.amount_paid),
-                            date: new Date(inv.paid_at).toISOString()
+                            date: new Date(inv.paid_at).toISOString(),
+                            clientName: inv.client_name || inv.clientName || inv.customer_name || 'Client Inconnu',
+                            metadata: inv.type || inv.description || (inv.amount_paid < inv.amount ? 'Deposit' : 'Full Payment')
                         });
                     }
                 });
@@ -207,9 +211,10 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                             appName: 'Auclaire APP',
                             type: exp.category === 'commission' ? 'commission_paid' : 'expense_logged',
                             title: exp.category === 'commission' ? 'Commission Paid' : 'Expense Logged',
-                            description: `Expense of $${exp.amount} recorded`,
+                            description: exp.description || `Expense of $${exp.amount} recorded`,
                             amount: Number(exp.amount),
-                            date: new Date(exp.date || exp.created_at).toISOString()
+                            date: new Date(exp.date || exp.created_at).toISOString(),
+                            metadata: exp.category || 'General Expense'
                         });
                     }
                 });
@@ -255,8 +260,8 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             const userRes = await turso.execute("SELECT COUNT(*) as count FROM clients");
             const taskRes = await turso.execute("SELECT COUNT(*) as count FROM shoots");
             
-            // Get all payments for financial breakdown and time-series
-            const paymentRes = await turso.execute("SELECT amount, status, date FROM payments");
+            // Get all payments using SELECT * to allow harvesting of client names and metadata
+            const paymentRes = await turso.execute("SELECT * FROM payments");
             
             let billed = 0;
             let collected = 0;
@@ -281,9 +286,11 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                             appName: 'Defcon App',
                             type: 'payment_collected',
                             title: 'Payment Received',
-                            description: `Payment of $${amount} collected`,
+                            description: row.description ? String(row.description) : `Payment of $${amount} collected`,
                             amount,
-                            date: new Date(dateRaw).toISOString()
+                            date: new Date(dateRaw).toISOString(),
+                            clientName: row.client_name || row.contact_name ? String(row.client_name || row.contact_name) : undefined,
+                            metadata: row.type || row.payment_type ? String(row.type || row.payment_type) : undefined
                         });
                     }
                 }
@@ -448,7 +455,7 @@ path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
             const { count: userCount } = await drsSupabase.from('ClientProfile').select('*', { count: 'exact', head: true });
             
             // Fetch jobs
-            const { data: jobs } = await drsSupabase.from('Job').select('totalPrice, status, updatedAt');
+            const { data: jobs } = await drsSupabase.from('Job').select('*');
             
             let billed = 0;
             let collected = 0;
@@ -472,9 +479,11 @@ path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
                                     appName: 'DRS Auto Detailing',
                                     type: 'payment_collected',
                                     title: 'Job Completed',
-                                    description: `Detailing job of $${price} completed`,
+                                    description: job.title ? `Job: ${job.title}` : `Detailing job of $${price} completed`,
                                     amount: price,
-                                    date: dateRaw.toISOString()
+                                    date: dateRaw.toISOString(),
+                                    clientName: job.clientName || job.client_name || job.firstName || undefined,
+                                    metadata: job.serviceType || job.package || 'Detailing Service'
                                 });
                             }
                         }
