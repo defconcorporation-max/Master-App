@@ -342,17 +342,23 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
     };
 
     return (
-        <div className={`flex h-screen overflow-hidden font-sans bg-[var(--background)] text-[var(--foreground)] ${presentationMode ? 'presentation-mode' : ''}`}>
-            {/* Minimal & Powerful Sidebar */}
-            <aside className={`w-72 border-r flex flex-col z-20 shadow-2xl transition-all duration-300 bg-[var(--sidebar-bg)] border-[var(--border)] ${presentationMode ? 'hidden' : ''}`}>
-                <div className="p-8 pb-4">
+        <div className={`flex h-screen overflow-hidden bg-black text-[var(--foreground)] relative font-sans ${presentationMode ? 'presentation-mode' : ''}`}>
+            
+            {/* Background Base Effects */}
+            <div className="absolute inset-0 oled-grid pointer-events-none" />
+            <div className="ambient-glow ambient-cyan" />
+            <div className="ambient-glow ambient-indigo" />
+
+            {/* Minimal & Powerful Jewel Sidebar */}
+            <aside className={`w-72 m-4 rounded-[2rem] glass-panel flex flex-col z-20 transition-all duration-300 ${presentationMode ? 'hidden' : ''}`}>
+                <div className="p-6 pb-4">
                     <div className="flex items-center gap-3 mb-10">
-                        <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
-                            <LayoutDashboard className="w-6 h-6 text-white" />
+                        <div className="w-10 h-10 bg-indigo-500/20 rounded-2xl flex items-center justify-center border border-indigo-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
+                            <LayoutDashboard className="w-5 h-5 text-indigo-400" />
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-lg font-black tracking-tight leading-none uppercase">Master App</span>
-                            <span className="text-[10px] font-bold text-zinc-600 tracking-widest mt-1">GLOBAL_OS_VER_3.0</span>
+                            <span className="text-base font-black tracking-tight leading-none uppercase">Master App</span>
+                            <span className="text-[9px] font-bold text-zinc-500 tracking-widest mt-1">GLOBAL_OS_VER_4.0</span>
                         </div>
                     </div>
 
@@ -367,13 +373,13 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                                         setActiveTab(item.id as Tab);
                                     }
                                 }}
-                                className={`w-full group flex items-center gap-4 px-4 py-4 rounded-2xl transition-all duration-300 ${
+                                className={`w-full group flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 ${
                                     activeTab === item.id 
-                                        ? 'bg-blue-600/10 border border-blue-500/20 text-white shadow-[0_0_20px_rgba(59,130,246,0.1)]' 
-                                        : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5 border border-transparent'
+                                        ? 'bg-blue-500/10 border border-blue-500/20 text-blue-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_20px_rgba(59,130,246,0.15)]' 
+                                        : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03] border border-transparent'
                                 }`}
                             >
-                                <div className={`transition-colors ${activeTab === item.id ? 'text-blue-500' : 'group-hover:text-zinc-300'}`}>
+                                <div className={`transition-all duration-300 ${activeTab === item.id ? 'text-blue-400 scale-110' : 'group-hover:text-zinc-200'}`}>
                                     {item.icon}
                                 </div>
                                 <div className="flex flex-col items-start relative">
@@ -393,22 +399,22 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                     </nav>
                 </div>
 
-                <div className="mt-auto p-8 pt-4">
-                    <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl flex items-center gap-3">
+                <div className="mt-auto p-6 pt-4">
+                    <div className="p-3 bg-black/40 border border-white/5 rounded-2xl flex items-center gap-3 backdrop-blur-md shadow-inner">
                         <div className="relative">
-                            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full" />
-                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-zinc-900 rounded-full" />
+                            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500/80 to-purple-500/80 rounded-xl border border-white/10" />
+                            <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-black rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-xs font-black uppercase text-white">The Master</span>
-                            <span className="text-[9px] font-bold text-zinc-600 uppercase">Empire Owner</span>
+                            <span className="text-xs font-black uppercase text-slate-200 tracking-wide">The Master</span>
+                            <span className="text-[8px] font-bold text-indigo-400/80 uppercase tracking-widest">Empire Owner</span>
                         </div>
                     </div>
                 </div>
             </aside>
 
             {/* Main Content Area */}
-            <main className={`flex-1 overflow-y-auto p-8 md:p-12 scrollbar-hide transition-all duration-300 ${presentationMode ? 'max-w-full' : ''} bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-zinc-900 via-black to-black`}>
+            <main className={`flex-1 overflow-y-auto p-8 md:p-10 scrollbar-hide transition-all duration-300 z-10 ${presentationMode ? 'max-w-full' : ''}`}>
                 <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
                     <div className="flex-1 max-w-2xl">
                         <GlobalSearch />
@@ -420,13 +426,13 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                         <button
                             type="button"
                             onClick={() => setPresentationMode((p) => !p)}
-                            className="p-3 bg-zinc-900 border border-zinc-800 rounded-2xl hover:bg-zinc-800 transition-colors text-zinc-400"
+                            className="p-3 glass-pill rounded-full hover:bg-white/10 transition-colors text-zinc-400 hover:text-white"
                             title={presentationMode ? 'Quitter le mode présentation' : 'Mode présentation'}
                         >
-                            {presentationMode ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                            {presentationMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                         </button>
-                        <button className="p-3 bg-zinc-900 border border-zinc-800 rounded-2xl hover:bg-zinc-800 transition-colors text-zinc-400">
-                            <Bell className="w-5 h-5" />
+                        <button className="p-3 glass-pill rounded-full hover:bg-white/10 transition-colors text-zinc-400 hover:text-white">
+                            <Bell className="w-4 h-4" />
                         </button>
                     </div>
                 </header>
