@@ -214,8 +214,8 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                     }
                 });
             }
-            // Sort Descending
-            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20);
+            // Sort Descending (Removed slice to supply full data to calendar)
+            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             // Count total projects for 'tasks'
             const { count: projCount } = await supabase.from('projects').select('*', { count: 'exact', head: true });
@@ -289,7 +289,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                 }
             });
 
-            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20);
+            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             const chartData = Array.from(chartDataMap.entries())
                 .map(([date, revenue]) => ({ date, revenue }))
@@ -406,7 +406,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                 }
             });
 
-            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20);
+            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             const chartData = Array.from(chartDataMap.entries())
                 .map(([date, data]) => ({ date, revenue: data.revenue, expenses: data.expenses }))
@@ -502,7 +502,7 @@ path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
                     profit: collected - expenses
                 },
                 chartData,
-                activityFeed: activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20),
+                activityFeed: activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
                 tasks: jobs ? jobs.length : 0
             };
         } catch (e: any) {
@@ -708,7 +708,7 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
         try {
             await mongoClient.connect();
             const db = mongoClient.db('travel-agency');
-            const items = await db.collection('itineraryitems').find({}).limit(50).toArray();
+            const items = await db.collection('itineraryitems').find({}).toArray();
             items.forEach(item => tasks.push({
                 id: `vv-${item._id}`,
                 appName: 'Viva Vegas',
