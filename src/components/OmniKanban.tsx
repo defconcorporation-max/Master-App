@@ -37,20 +37,20 @@ export function OmniKanban({ tasks }: OmniKanbanProps) {
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+        <div className="flex flex-col h-full glass-panel overflow-hidden">
+            <div className="p-6 border-b border-white/[0.05] flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-500/10 rounded-xl">
+                    <div className="p-2 border border-indigo-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] rounded-xl bg-indigo-500/10">
                         <LayoutDashboard className="w-5 h-5 text-indigo-400" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-white">Task Force</h2>
-                        <p className="text-xs text-slate-400">Omni-Empire operational board</p>
+                        <h2 className="text-lg font-black tracking-tight text-slate-100 uppercase">Tactical Ops Board</h2>
+                        <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">Omni-Empire Force</p>
                     </div>
                 </div>
                 <div className="flex -space-x-2">
-                    {[1,2,3].map(i => (
-                        <div key={i} className="w-8 h-8 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                    {[1,2].map(i => (
+                        <div key={i} className="w-8 h-8 rounded-full border border-white/10 bg-black/50 backdrop-blur-md flex items-center justify-center text-[9px] font-black tracking-widest text-indigo-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
                             AI
                         </div>
                     ))}
@@ -78,21 +78,23 @@ export function OmniKanban({ tasks }: OmniKanbanProps) {
                                 .map(task => (
                                     <div 
                                         key={task.id}
-                                        className="p-4 bg-slate-800/40 border border-white/5 rounded-2xl group hover:border-white/10 transition-all cursor-pointer"
+                                        className="p-4 glass-pill group hover:border-white/20 transition-all cursor-pointer rounded-2xl relative overflow-hidden"
                                     >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className={`px-2 py-0.5 rounded border text-[9px] font-bold uppercase tracking-tight ${getAppTag(task.appName)}`}>
+                                        <div className="absolute top-0 right-0 w-16 h-16 bg-white/[0.02] blur-xl group-hover:bg-indigo-500/10 transition-colors" />
+                                        
+                                        <div className="flex items-center justify-between mb-3 relative z-10">
+                                            <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] ${getAppTag(task.appName)}`}>
                                                 {task.appName}
                                             </span>
-                                            <Zap className={`w-3 h-3 ${task.priority === 'high' ? 'text-orange-400' : 'text-slate-600'}`} />
+                                            <Zap className={`w-3 h-3 ${task.priority === 'high' || task.priority === 'critical' ? 'text-orange-400 fill-orange-400/20' : 'text-slate-600'}`} />
                                         </div>
                                         
-                                        <h3 className="text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors line-clamp-2 leading-snug mb-4">
+                                        <h3 className="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors line-clamp-2 leading-snug mb-4 relative z-10">
                                             {task.title}
                                         </h3>
 
-                                        <div className="flex items-center justify-between mt-auto pt-3 border-t border-white/5">
-                                            <div className="flex items-center gap-1.5 text-slate-500 text-[10px]">
+                                        <div className="flex items-center justify-between mt-auto pt-3 border-t border-white/5 relative z-10">
+                                            <div className="flex items-center gap-1.5 text-slate-500 font-medium text-[10px]">
                                                 <Calendar className="w-3 h-3" />
                                                 {new Date(task.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                                             </div>

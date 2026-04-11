@@ -155,8 +155,8 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
         : "h-full w-full";
         
     const containerClasses = isFullscreen
-        ? "flex flex-col h-full bg-slate-900 border border-slate-700/50 rounded-[2rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 mx-auto"
-        : "flex flex-col h-full bg-black/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden shadow-2xl relative";
+        ? "flex flex-col h-full glass-panel border border-indigo-500/30 overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 mx-auto"
+        : "flex flex-col h-full glass-panel overflow-hidden relative";
 
     const fetchDayEvents = (targetDay: Date) => {
         return allEvents.filter(e => {
@@ -196,14 +196,14 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
             <div className={wrapperClasses}>
                 <div className={containerClasses}>
                     {/* Header */}
-                    <div className="p-4 sm:p-5 border-b border-white/5 flex flex-wrap gap-4 items-center justify-between shrink-0 bg-zinc-900/40">
+                    <div className="p-4 sm:p-5 border-b border-white/[0.05] flex flex-wrap gap-4 items-center justify-between shrink-0">
                         <div className="flex items-center gap-3">
-                            <div className="p-2.5 bg-indigo-500/10 rounded-xl">
+                            <div className="p-2.5 border border-indigo-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] rounded-xl bg-indigo-500/10">
                                 <CalendarIcon className="w-5 h-5 text-indigo-400" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-bold text-white tracking-tight leading-snug">Agenda Omni-Opérationnel</h2>
-                                <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Vue Dense Structurée</p>
+                                <h2 className="text-lg font-black text-slate-100 tracking-tight leading-snug uppercase">Agenda Omni-Opérationnel</h2>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Vue Dense Structurée</p>
                             </div>
                         </div>
                         
