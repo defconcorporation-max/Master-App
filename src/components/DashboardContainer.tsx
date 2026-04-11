@@ -231,7 +231,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                                 </button>
                             </div>
                         </div>
-                        <div className="h-[650px] relative">
+                        <div className="min-h-[850px] h-[85vh] relative">
                             {opsView === 'board' ? (
                                 <OmniKanban tasks={filteredData.tasks} />
                             ) : (
