@@ -15,7 +15,8 @@ import {
     Maximize2,
     Minimize2,
     Boxes,
-    Map
+    Map,
+    Terminal
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -52,8 +53,11 @@ import { ExportCSVButton, buildStatsCSV, downloadCSV } from '@/components/Export
 import { GoalsWidget } from '@/components/GoalsWidget';
 import { PeriodComparison } from '@/components/PeriodComparison';
 import { ProcessStatusPanel } from '@/components/ProcessStatusPanel';
+import { EmpirePipeline } from '@/components/EmpirePipeline';
 import { WhaleTracker } from '@/components/WhaleTracker';
 import { ExpenseRadar } from '@/components/ExpenseRadar';
+import { SystemHealthGrid } from '@/components/SystemHealthGrid';
+import { SystemLogsConsole } from '@/components/SystemLogsConsole';
 import { AppStats } from '@/lib/db-clients';
 
 type Tab = 'pulse' | 'ops' | 'strategy' | 'comms' | 'systems';
@@ -144,12 +148,12 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
     }, []);
 
     const navigation = [
-        { id: 'pulse', label: 'Pulse', icon: <Activity className="w-5 h-5" />, description: 'Empire Vitals', isNew: false },
-        { id: 'ops', label: 'Ops', icon: <Rocket className="w-5 h-5" />, description: 'Tactical Board', isNew: true },
-        { id: '3d', label: '3D City', icon: <Boxes className="w-5 h-5" />, description: 'Visual Engine', isNew: true, action: handle3DLaunch },
-        { id: 'strategy', label: 'Strategy', icon: <TrendingUp className="w-5 h-5" />, description: 'Growth Lab', isNew: false },
-        { id: 'comms', label: 'Comms', icon: <MessageSquare className="w-5 h-5" />, description: 'Messaging', isNew: false },
-        { id: 'systems', label: 'Systems', icon: <Shield className="w-5 h-5" />, description: 'Infrastructure', isNew: false },
+        { id: 'pulse', label: 'Pulse', icon: <Activity className="w-5 h-5" />, description: 'Empire Vitals', status: 'normal' },
+        { id: 'ops', label: 'Ops', icon: <Rocket className="w-5 h-5" />, description: 'Tactical Board', badge: filteredData.tasks.filter(t => t.status !== 'done').length },
+        { id: '3d', label: '3D City', icon: <Boxes className="w-5 h-5" />, description: 'Visual Engine', status: 'special', action: handle3DLaunch },
+        { id: 'strategy', label: 'Strategy', icon: <TrendingUp className="w-5 h-5" />, description: 'Growth Lab', status: 'normal' },
+        { id: 'comms', label: 'Comms', icon: <MessageSquare className="w-5 h-5" />, description: 'Messaging', status: 'normal' },
+        { id: 'systems', label: 'Systems', icon: <Shield className="w-5 h-5" />, description: 'Core Infra', status: 'secure' },
     ];
 
     const handleExportCSV = () => {
@@ -172,6 +176,8 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                             deployedApps={filteredData.deployedApps} 
                             totalPending={filteredData.totalPending} 
                         />
+
+                        <EmpirePipeline tasks={filteredData.tasks} />
                         
                         <DashboardFilters
                             selectedApps={selectedApps}
@@ -289,10 +295,35 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                 );
             case 'systems':
                 return (
-                    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <section>
+                            <h2 className="text-xl font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2 mb-8">
+                                <Shield className="w-6 h-6" /> System Infrastructure Health
+                            </h2>
+                            <SystemHealthGrid />
+                        </section>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <section className="space-y-6">
+                                <h2 className="text-sm font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                                    <Terminal className="w-4 h-4" /> Live System Logs
+                                </h2>
+                                <SystemLogsConsole />
+                            </section>
+
+                            <section className="space-y-6">
+                                <h2 className="text-sm font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                                    <Rocket className="w-4 h-4" /> Operational Processes
+                                </h2>
+                                <div className="h-[400px]">
+                                    <ProcessStatusPanel />
+                                </div>
+                            </section>
+                        </div>
+
                         <section>
                             <h2 className="text-sm font-black uppercase tracking-widest text-zinc-500 mb-6 flex items-center gap-2">
-                                <Rocket className="w-4 h-4" /> Deployed Systems
+                                <Globe className="w-4 h-4" /> Distributed Nodes & Apps
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                                 {filteredData.deployedApps.map((app) => (
@@ -300,17 +331,10 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                                 ))}
                             </div>
                         </section>
+
                         <section>
                             <h2 className="text-sm font-black uppercase tracking-widest text-zinc-500 mb-6 flex items-center gap-2">
-                                <Rocket className="w-4 h-4" /> Processus en cours
-                            </h2>
-                            <div className="h-[280px]">
-                                <ProcessStatusPanel />
-                            </div>
-                        </section>
-                        <section>
-                            <h2 className="text-sm font-black uppercase tracking-widest text-zinc-500 mb-6 flex items-center gap-2">
-                                <Globe className="w-4 h-4" /> Local Workspaces Found
+                                <Map className="w-4 h-4" /> Core Workspaces
                             </h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                                 {data.businesses.map((business) => (
@@ -318,6 +342,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                                 ))}
                             </div>
                         </section>
+
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-1">
                                 <TaxAutomator data={{
@@ -385,8 +410,13 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                                 <div className="flex flex-col items-start relative">
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm font-black uppercase tracking-widest">{item.label}</span>
-                                        {item.isNew && (
-                                            <span className="flex h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                        {item.id === 'systems' && (
+                                            <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_#10b981]" />
+                                        )}
+                                        {item.badge && item.badge > 0 && (
+                                            <span className="px-1.5 py-0.5 bg-indigo-500/20 border border-indigo-500/30 rounded text-[8px] font-black text-indigo-400">
+                                                {item.badge}
+                                            </span>
                                         )}
                                     </div>
                                     <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-tighter">{item.description}</span>

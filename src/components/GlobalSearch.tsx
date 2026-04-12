@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, X, User, Briefcase, FileText, LayoutList, History } from 'lucide-react';
-import { performGlobalSearch } from '@/lib/actions';
-import { OmniSearchResult } from '@/lib/god-eye';
+import { Search, Loader2, X, User, Briefcase, FileText, LayoutList, History, Zap } from 'lucide-react';
+import { performGlobalSearch } from '@/lib/server-actions';
+import { OmniSearchResult } from '@/lib/types';
 
 const SEARCH_HISTORY_KEY = 'master-app-search-history';
 const MAX_HISTORY = 8;

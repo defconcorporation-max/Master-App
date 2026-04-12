@@ -83,3 +83,11 @@ export interface ExpenseItem {
     amount: number;
     date: string;
 }
+
+export interface OmniSearchResult {
+    id: string;
+    appName: string;
+    type: 'client' | 'project' | 'invoice' | 'job' | 'other';
+    title: string;
+    subtitle?: string;
+}
