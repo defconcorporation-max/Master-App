@@ -89,7 +89,11 @@ export function WhaleTracker() {
                     </div>
                 ) : (
                     whales.map((whale, idx) => (
-                        <div key={whale.id} className="flex items-center gap-3 p-3 glass-pill rounded-xl hover:bg-white/[0.04] transition-all group/item cursor-pointer">
+                        <div 
+                            key={whale.id} 
+                            onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: whale }))}
+                            className="flex items-center gap-3 p-3 glass-pill rounded-xl hover:bg-white/[0.04] transition-all group/item cursor-pointer"
+                        >
                             {/* Rank */}
                             <div className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-xs font-black ${
                                 idx === 0 ? 'bg-amber-500/20 text-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.2)]' :

@@ -134,17 +134,21 @@ export function EmpirePipeline({ tasks }: EmpirePipelineProps) {
                         {/* Top 3 tasks in this stage */}
                         <div className="space-y-1.5 mt-3">
                             {stage.tasks.slice(0, 3).map(task => (
-                                <div key={task.id} className="flex items-center gap-2 p-1.5 rounded-md hover:bg-white/[0.03] transition-all group/task">
+                                <div 
+                                    key={task.id} 
+                                    onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: task }))}
+                                    className="flex items-center gap-2 p-1.5 rounded-md hover:bg-white/[0.03] transition-all group/task cursor-pointer"
+                                >
                                     <div className={`w-1 h-6 rounded-full shrink-0 ${
                                         task.priority === 'critical' ? 'bg-red-500' :
                                         task.priority === 'high' ? 'bg-amber-500' :
                                         task.priority === 'medium' ? 'bg-blue-500' : 'bg-slate-600'
                                     }`} />
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-[11px] text-slate-300 truncate font-medium group-hover/task:text-white transition-colors">
+                                        <p className="text-[11px] text-zinc-300 truncate font-medium group-hover/task:text-white transition-colors">
                                             {task.title}
                                         </p>
-                                        <p className="text-[9px] text-slate-500 font-bold uppercase truncate">
+                                        <p className="text-[9px] text-zinc-500 font-bold uppercase truncate">
                                             {task.appName.replace(' APP', '')}
                                             {task.clientName ? ` · ${task.clientName}` : ''}
                                         </p>

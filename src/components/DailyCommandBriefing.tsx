@@ -84,23 +84,31 @@ export function DailyCommandBriefing({ tasks, activities, deployedApps, totalPen
                             <div className="space-y-4 flex-1 overflow-y-auto scrollbar-hide pr-2">
                                 {/* Critical Items */}
                                 {briefingData.actionPriority.map(t => (
-                                    <div key={t.id} className="p-3 bg-red-500/10 border-l-2 border-red-500 rounded-r-xl rounded-l-sm flex flex-col gap-1 hover:bg-red-500/20 transition-colors">
+                                    <div 
+                                        key={t.id} 
+                                        onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: t }))}
+                                        className="p-3 bg-red-500/10 border-l-2 border-red-500 rounded-r-xl rounded-l-sm flex flex-col gap-1 hover:bg-red-500/20 transition-all cursor-pointer group"
+                                    >
                                         <div className="flex justify-between items-start">
                                             <span className="text-[9px] uppercase font-black tracking-widest text-red-400">{t.appName}</span>
                                             {t.hasSpecificTime && <span className="text-[10px] font-mono text-red-300 font-bold">{format(new Date(t.date), 'HH:mm')}</span>}
                                         </div>
-                                        <p className="text-sm font-bold text-red-50">{t.title}</p>
+                                        <p className="text-sm font-bold text-red-50 group-hover:text-white transition-colors">{t.title}</p>
                                     </div>
                                 ))}
                                 
                                 {/* Standard Items */}
                                 {briefingData.standardToday.map(t => (
-                                    <div key={t.id} className="p-3 bg-white/[0.02] border border-white/5 rounded-xl flex flex-col gap-1 hover:bg-white/[0.05] transition-colors">
+                                    <div 
+                                        key={t.id} 
+                                        onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: t }))}
+                                        className="p-3 bg-white/[0.02] border border-white/5 rounded-xl flex flex-col gap-1 hover:bg-white/[0.05] hover:border-white/10 transition-all cursor-pointer group"
+                                    >
                                         <div className="flex justify-between items-start">
                                             <span className="text-[9px] uppercase font-bold tracking-widest text-zinc-500">{t.appName}</span>
                                             {t.hasSpecificTime && <span className="text-[10px] font-mono text-zinc-400">{format(new Date(t.date), 'HH:mm')}</span>}
                                         </div>
-                                        <p className="text-sm font-semibold text-zinc-200">{t.title}</p>
+                                        <p className="text-sm font-semibold text-zinc-200 group-hover:text-white transition-colors">{t.title}</p>
                                         {(t.clientName || t.stage) && (
                                             <p className="text-[10px] font-semibold text-indigo-400 mt-1">
                                                 {t.clientName} {t.stage && `• [${t.stage.toUpperCase()}]`}

@@ -78,6 +78,7 @@ export function OmniKanban({ tasks }: OmniKanbanProps) {
                                 .map(task => (
                                     <div 
                                         key={task.id}
+                                        onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: task }))}
                                         className="p-4 glass-pill group hover:border-white/20 transition-all cursor-pointer rounded-2xl relative overflow-hidden"
                                     >
                                         <div className="absolute top-0 right-0 w-16 h-16 bg-white/[0.02] blur-xl group-hover:bg-indigo-500/10 transition-colors" />

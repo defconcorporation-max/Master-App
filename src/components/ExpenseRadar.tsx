@@ -152,8 +152,12 @@ export function ExpenseRadar() {
                     <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-2">Dernières Dépenses</p>
                     <div className="space-y-1">
                         {expenses.slice(0, 3).map(e => (
-                            <div key={e.id} className="flex items-center justify-between text-[10px]">
-                                <span className="text-slate-400 truncate flex-1 mr-2 font-medium">
+                            <div 
+                                key={e.id} 
+                                onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: e }))}
+                                className="flex items-center justify-between text-[10px] p-1 rounded hover:bg-white/5 cursor-pointer group/expense transition-all"
+                            >
+                                <span className="text-slate-400 truncate flex-1 mr-2 font-medium group-hover/expense:text-white transition-colors">
                                     <span className="text-slate-500 font-bold">{e.appName}</span> · {e.description || e.category}
                                 </span>
                                 <span className="text-red-400 font-bold shrink-0">-${e.amount.toLocaleString()}</span>

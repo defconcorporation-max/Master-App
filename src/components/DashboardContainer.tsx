@@ -55,10 +55,15 @@ import { PeriodComparison } from '@/components/PeriodComparison';
 import { ProcessStatusPanel } from '@/components/ProcessStatusPanel';
 import { EmpirePipeline } from '@/components/EmpirePipeline';
 import { WhaleTracker } from '@/components/WhaleTracker';
+import { EntityDetailSidebar } from '@/components/EntityDetailSidebar';
+import { PredictiveCashflow } from '@/components/PredictiveCashflow';
+import { CyberPulseSynthesis } from '@/components/CyberPulseSynthesis';
+import { WealthForecast } from '@/components/WealthForecast';
+import { CommandOrb } from '@/components/CommandOrb';
 import { ExpenseRadar } from '@/components/ExpenseRadar';
 import { SystemHealthGrid } from '@/components/SystemHealthGrid';
 import { SystemLogsConsole } from '@/components/SystemLogsConsole';
-import { AppStats } from '@/lib/db-clients';
+import { OmniTask, EmpireContact, ExpenseItem, AppStats } from '@/lib/types';
 
 type Tab = 'pulse' | 'ops' | 'strategy' | 'comms' | 'systems';
 
@@ -88,6 +93,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
     const [viewMode, setViewMode] = useState<ViewMode>('empire');
     const [presentationMode, setPresentationMode] = useState(false);
     const [opsView, setOpsView] = useState<'board' | 'calendar'>('board');
+    const [selectedEntity, setSelectedEntity] = useState<OmniTask | EmpireContact | ExpenseItem | null>(null);
     const router = useRouter();
 
     const handle3DLaunch = () => {
@@ -143,8 +149,18 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                 }
             }
         };
+        const onEntitySelect = (e: any) => {
+            if (e.detail) {
+                setSelectedEntity(e.detail);
+            }
+        };
+
         window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
+        window.addEventListener('entity-selected' as any, onEntitySelect);
+        return () => {
+            window.removeEventListener('keydown', onKey);
+            window.removeEventListener('entity-selected' as any, onEntitySelect);
+        };
     }, []);
 
     const navigation = [
@@ -169,7 +185,19 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
             case 'pulse':
                 return (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        {/* Intelligent Tactical Briefing taking priority over everything */}
+                        {/* High Intelligence AI Layer */}
+                        <CyberPulseSynthesis 
+                            stats={filteredData.deployedApps} 
+                            tasks={filteredData.tasks} 
+                        />
+
+                        {/* Strategic Wealth Model */}
+                        <WealthForecast 
+                            stats={filteredData.deployedApps} 
+                            tasks={filteredData.tasks} 
+                        />
+
+                        {/* Intelligent Tactical Briefing */}
                         <DailyCommandBriefing 
                             tasks={filteredData.tasks} 
                             activities={filteredData.allActivities} 
@@ -194,6 +222,9 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                             totalExpenses={filteredData.totalExpenses}
                             totalCommissionsPaid={filteredData.totalCommissionsPaid}
                         />
+
+                        <PredictiveCashflow apps={filteredData.deployedApps} />
+
                         <PeriodComparison chartData={filteredData.globalChartData} />
                         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                             <div className="lg:col-span-1">
@@ -443,9 +474,22 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                 </div>
             </aside>
 
+            {/* Universal Detail Sidebar */}
+            <EntityDetailSidebar 
+                entity={selectedEntity} 
+                onClose={() => setSelectedEntity(null)} 
+            />
+
+            {/* Strategic Command Orb */}
+            <CommandOrb 
+                isPresentation={presentationMode}
+                onTogglePresentation={() => setPresentationMode(!presentationMode)}
+                onExport={handleExportCSV}
+            />
+
             {/* Main Content Area */}
-            <main className={`flex-1 overflow-y-auto p-8 md:p-10 scrollbar-hide transition-all duration-300 z-10 ${presentationMode ? 'max-w-full' : ''}`}>
-                <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
+            <main className={`flex-1 overflow-y-auto scrollbar-hide transition-all duration-700 z-10 ${presentationMode ? 'p-0 bg-[#020617]' : 'p-8 md:p-10'}`}>
+                <header className={`flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6 transition-all duration-500 ${presentationMode ? 'opacity-0 h-0 p-0 mb-0 overflow-hidden' : 'opacity-100'}`}>
                     <div className="flex-1 max-w-2xl">
                         <GlobalSearch />
                     </div>

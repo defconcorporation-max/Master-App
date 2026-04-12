@@ -16,7 +16,6 @@ export function OmniCRM() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [filterApp, setFilterApp] = useState<string>('all');
-    const [selectedContact, setSelectedContact] = useState<EmpireContact | null>(null);
 
     useEffect(() => {
         let mounted = true;
@@ -146,7 +145,7 @@ export function OmniCRM() {
                                     <tr 
                                         key={contact.id} 
                                         className="group hover:bg-white/[0.02] transition-colors cursor-pointer"
-                                        onClick={() => setSelectedContact(contact)}
+                                        onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: contact }))}
                                     >
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
@@ -212,100 +211,6 @@ export function OmniCRM() {
                 )}
             </div>
 
-            {/* Profile Detail Overlay */}
-            {selectedContact && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-end bg-black/60 backdrop-blur-sm animate-in fade-in">
-                    <div className="w-full max-w-md h-full bg-slate-950 border-l border-white/10 shadow-2xl overflow-y-auto animate-in slide-in-from-right-8 duration-300 flex flex-col">
-                        <div className="p-6 border-b border-white/5 relative overflow-hidden bg-zinc-900/40">
-                            <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/10 blur-[60px]" />
-                            <div className="flex justify-between items-start mb-6 relative z-10">
-                                <div className={`px-2 py-1 inline-flex items-center gap-1.5 rounded border text-[9px] font-black uppercase tracking-widest ${getAppTag(selectedContact.appName)}`}>
-                                    {getAppIcon(selectedContact.appName)} {selectedContact.appName} Lead
-                                </div>
-                                <button 
-                                    onClick={() => setSelectedContact(null)}
-                                    className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors"
-                                >
-                                    Fermer
-                                </button>
-                            </div>
-                            <div className="relative z-10 flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-2xl font-black text-indigo-400">
-                                    {selectedContact.name.charAt(0).toUpperCase()}
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold text-white tracking-tight">{selectedContact.name}</h3>
-                                    <div className={`mt-1 px-2 py-0.5 inline-block rounded text-[9px] font-black uppercase tracking-widest ${getStatusStyle(selectedContact.status)}`}>
-                                        {selectedContact.status === 'vip' ? 'Profil VIP' : 'Lead Potentiel'}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="p-6 space-y-6 flex-1">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="glass-pill p-4 rounded-xl flex flex-col gap-1 text-center border-t-2 border-emerald-500/50">
-                                    <span className="text-[10px] text-emerald-500/70 font-black uppercase tracking-widest">Lifetime Value</span>
-                                    <span className="text-xl font-black text-emerald-400">${selectedContact.lifetimeValue.toLocaleString()}</span>
-                                </div>
-                                <div className="glass-pill p-4 rounded-xl flex flex-col gap-1 text-center border-t-2 border-indigo-500/50">
-                                    <span className="text-[10px] text-indigo-400/70 font-black uppercase tracking-widest">Dernière Action</span>
-                                    <span className="text-sm font-bold text-indigo-300 mt-1 line-clamp-1">
-                                        {(() => {
-                                            try { return format(parseISO(selectedContact.lastActive), 'MMM yyyy', { locale: fr }); }
-                                            catch(e) { return '-'; }
-                                        })()}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Données de Contact</h4>
-                                <div className="glass-pill p-3 px-4 rounded-xl flex flex-wrap items-center justify-between gap-4">
-                                    <div className="flex items-center gap-3 w-full">
-                                        <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
-                                            <Mail className="w-4 h-4" />
-                                        </div>
-                                        <div className="flex-1 overflow-hidden">
-                                            <p className="text-[10px] text-slate-500 uppercase font-black">Email</p>
-                                            <p className="text-sm text-slate-200 font-mono truncate">{selectedContact.email}</p>
-                                        </div>
-                                    </div>
-                                    {(selectedContact.phone || selectedContact.email) && (
-                                        <button className="w-full mt-2 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
-                                            Démarrer une Communication AI
-                                        </button>
-                                    )}
-                                </div>
-                                {selectedContact.phone && (
-                                    <div className="glass-pill p-3 px-4 rounded-xl flex items-center gap-3">
-                                        <div className="p-2 bg-slate-800 rounded-lg text-slate-400">
-                                            <Phone className="w-4 h-4" />
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] text-slate-500 uppercase font-black">Téléphone</p>
-                                            <p className="text-sm text-slate-200 font-mono">{selectedContact.phone}</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="space-y-3">
-                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Synthèse Historique</h4>
-                                <div className="p-4 border border-white/5 bg-black/20 rounded-xl">
-                                    <p className="text-sm text-slate-300 font-medium leading-relaxed">
-                                        Profil extrait depuis l'application <span className="font-bold text-white">{selectedContact.appName}</span>. 
-                                        Identifié comme un statut {selectedContact.status} basé sur ses interactions existantes.
-                                    </p>
-                                    <div className="mt-4 inline-block bg-slate-800 px-3 py-1.5 rounded-md text-xs font-bold text-slate-400">
-                                        Matrice: {selectedContact.metrics}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

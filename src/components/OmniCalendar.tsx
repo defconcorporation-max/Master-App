@@ -58,7 +58,6 @@ const HOUR_HEIGHT = 48; // Compactness requested by user (1 hour = 48 pixels)
 export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
     // Lock to a 7-day grid view (standard calendar)
     const startDate = startOfWeek(currentDate, { weekStartsOn: 1 }); 
@@ -271,7 +270,7 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                                                 <div 
                                                     key={`ad-${event.id}`} 
                                                     title={`${event.appName} - ${event.title}`}
-                                                    onClick={() => setSelectedEvent(event)}
+                                                    onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: event.rawTask || event.rawActivity }))}
                                                     className={`px-1.5 py-1 rounded text-[9px] font-bold truncate ${styles.bg} border-l-[3px] text-white shadow-sm cursor-pointer hover:brightness-125 transition-all`}
                                                 >
                                                     {event.title}
@@ -326,7 +325,7 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                                                         <div 
                                                             key={`${event.id}-${idx}`}
                                                             title={`${event.title} - $${event.amount}`}
-                                                            onClick={() => setSelectedEvent(event)}
+                                                            onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: event.rawTask || event.rawActivity }))}
                                                             className={`absolute left-1 right-1 sm:left-2 sm:right-2 rounded ${styles.bg} shadow-md flex items-center gap-1.5 px-1.5 overflow-hidden group cursor-pointer hover:scale-105 transition-transform z-20`}
                                                             style={{ top: topOffset, height: calculateHeight(event) }}
                                                         >
@@ -343,7 +342,7 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                                                     <div 
                                                         key={`${event.id}-${idx}`}
                                                         title={`${event.title}`}
-                                                        onClick={() => setSelectedEvent(event)}
+                                                        onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: event.rawTask || event.rawActivity }))}
                                                         className={`absolute left-1 right-1 sm:left-1.5 sm:right-1.5 rounded-md border-l-[3px] ${styles.bg} p-1.5 flex flex-col gap-0.5 overflow-hidden group hover:brightness-125 cursor-pointer hover:z-30 transition-all z-10 shadow-sm`}
                                                         style={{ 
                                                             top: topOffset, 
@@ -373,152 +372,6 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                     </div>
                 </div>
             </div>
-
-            {/* Event Details Modal */}
-            {selectedEvent && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-                    <div className="w-full max-w-lg bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        {/* Modal Header */}
-                        <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/[0.02]">
-                            <div className="flex items-center gap-2">
-                                <div className={`p-2 rounded-lg ${getEventStyles(selectedEvent).bg} border border-white/10`}>
-                                    {getEventStyles(selectedEvent).icon}
-                                </div>
-                                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded border border-white/5 bg-black/40 ${getEventStyles(selectedEvent).text}`}>
-                                    {selectedEvent.appName}
-                                </span>
-                            </div>
-                            <button 
-                                onClick={() => setSelectedEvent(null)}
-                                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        
-                        {/* Modal Body */}
-                        <div className="p-6 space-y-6">
-                            <div>
-                                <h3 className="text-xl font-bold text-white tracking-tight mb-2">
-                                    {selectedEvent.title}
-                                </h3>
-                                <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-300">
-                                    <div className="flex items-center gap-1.5 bg-black/30 px-3 py-1.5 rounded-lg border border-white/5">
-                                        <CalendarIcon className="w-4 h-4 text-indigo-400" />
-                                        {format(selectedEvent.date, 'EEEE d MMM yyyy', { locale: fr })}
-                                    </div>
-                                    {selectedEvent.hasSpecificTime && (
-                                        <div className="flex items-center gap-1.5 bg-black/30 px-3 py-1.5 rounded-lg border border-white/5">
-                                            <Clock className="w-4 h-4 text-indigo-400" />
-                                            {format(selectedEvent.date, 'HH:mm')}
-                                            {selectedEvent.endDate && ` - ${format(selectedEvent.endDate, 'HH:mm')}`}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Global Context (Client / Project Bindings) */}
-                            {(selectedEvent.rawTask?.clientName || selectedEvent.rawActivity?.clientName) && (
-                                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
-                                        <User className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Entité Cible Principale</p>
-                                        <p className="text-sm text-slate-200 font-semibold">
-                                            {selectedEvent.rawTask?.clientName || selectedEvent.rawActivity?.clientName}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Additional OmniTask Metadata */}
-                            {selectedEvent.rawTask && (
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center gap-2">
-                                        <Tag className="w-4 h-4 text-slate-400" />
-                                        <div>
-                                            <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Statut</p>
-                                            <p className="text-xs text-slate-200 font-semibold capitalize">{selectedEvent.rawTask.status || 'Inconnu'}</p>
-                                        </div>
-                                    </div>
-
-                                    {selectedEvent.rawTask.stage && (
-                                        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center gap-2">
-                                            <Zap className="w-4 h-4 text-amber-400" />
-                                            <div>
-                                                <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Étape (Stage)</p>
-                                                <p className="text-xs text-slate-200 font-semibold capitalize">{selectedEvent.rawTask.stage}</p>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {selectedEvent.rawTask.jewelryType && (
-                                        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center gap-2">
-                                            <Briefcase className="w-4 h-4 text-purple-400" />
-                                            <div>
-                                                <p className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Type de Bijou</p>
-                                                <p className="text-xs text-slate-200 font-semibold capitalize">{selectedEvent.rawTask.jewelryType}</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Additional AppActivity Metadata */}
-                            {selectedEvent.rawActivity && (
-                                <div className="space-y-3">
-                                    {selectedEvent.rawActivity.description && (
-                                        <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                                            <div className="flex items-center gap-2 mb-2 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
-                                                <Info className="w-3 h-3" /> Description de la transaction
-                                            </div>
-                                            <p className="text-sm text-slate-300 font-medium">
-                                                {selectedEvent.rawActivity.description}
-                                            </p>
-                                        </div>
-                                    )}
-                                    {selectedEvent.rawActivity.metadata && (
-                                        <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex flex-col gap-1">
-                                            <div className="flex items-center gap-2 text-[10px] text-indigo-400 uppercase tracking-widest font-bold">
-                                                <AlertCircle className="w-3 h-3" /> Metadonnées de Transaction
-                                            </div>
-                                            <p className="text-sm font-semibold text-indigo-200">
-                                                {selectedEvent.rawActivity.metadata}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Financial Total */}
-                            {selectedEvent.amount !== undefined && selectedEvent.amount > 0 && (
-                                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
-                                    <div className="flex items-center gap-2 text-emerald-400">
-                                        <CreditCard className="w-5 h-5" />
-                                        <span className="text-[10px] uppercase tracking-widest font-bold text-emerald-500/70">
-                                            {selectedEvent.kind === 'financial' ? 'Montant de la Transaction' : 'Budget Est./Associé'}
-                                        </span>
-                                    </div>
-                                    <span className="text-xl font-black text-emerald-400">
-                                        ${selectedEvent.amount.toLocaleString()} <span className="text-sm font-bold opacity-70">USD</span>
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                        
-                        {/* Footer Action */}
-                        <div className="p-4 bg-black/40 border-t border-white/5 flex justify-end">
-                            <button 
-                                onClick={() => setSelectedEvent(null)}
-                                className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-bold rounded-lg transition-colors"
-                            >
-                                Fermer
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </>
     );
 }
