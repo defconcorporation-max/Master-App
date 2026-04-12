@@ -24,7 +24,7 @@ export function CommandOrb({ onTogglePresentation, isPresentation, onExport }: C
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <div className="fixed bottom-8 right-8 z-[150] flex flex-col items-end gap-3">
+        <div className="fixed bottom-8 right-28 z-[150] flex flex-col items-end gap-3">
             
             {/* Action Menu (Expands UP) */}
             <div className={`flex flex-col gap-3 transition-all duration-500 overflow-hidden ${isOpen ? 'h-64 opacity-100 mb-2' : 'h-0 opacity-0 mb-0'}`}>
