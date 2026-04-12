@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Loader2, X, User, Briefcase, FileText, LayoutList, History, Zap } from 'lucide-react';
 import { performGlobalSearch } from '@/lib/server-actions';
 import { OmniSearchResult } from '@/lib/types';
+import { Terminal, Command } from 'lucide-react';
 
 const SEARCH_HISTORY_KEY = 'master-app-search-history';
 const MAX_HISTORY = 8;
@@ -32,9 +33,23 @@ export function GlobalSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [isCommandMode, setIsCommandMode] = useState(false);
+  const [cmdFeedback, setCmdFeedback] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const commands = [
+    { id: 'invoice', label: 'Generate Invoice', icon: <FileText className="w-4 h-4" />, example: '/invoice [client]' },
+    { id: 'task', label: 'Create Task', icon: <LayoutList className="w-4 h-4" />, example: '/task [name]' },
+    { id: 'msg', label: 'Send Message', icon: <Zap className="w-5 h-5" />, example: '/msg [client]' },
+    { id: 'ghost', label: 'Enable Ghost Mode', icon: <History className="w-4 h-4" />, example: '/ghost' },
+    { id: 'cinema', label: 'Toggle Cinema Mode', icon: <Zap className="w-4 h-4" />, example: '/cinema' },
+  ];
+
+  const filteredCommands = query.startsWith('/') 
+    ? commands.filter(c => c.id.startsWith(query.slice(1).split(' ')[0]))
+    : [];
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -57,6 +72,13 @@ export function GlobalSearch() {
   }, [query]);
 
   useEffect(() => {
+    if (query.startsWith('/')) {
+        setIsCommandMode(true);
+        setResults([]);
+        return;
+    }
+    setIsCommandMode(false);
+
     if (query.trim().length < 2) {
       setResults([]);
       setIsLoading(false);
@@ -82,6 +104,20 @@ export function GlobalSearch() {
 
     return () => clearTimeout(timer);
   }, [query]);
+
+  const handleCommandExec = (cmd: string) => {
+    setCmdFeedback(`Executing: ${cmd}...`);
+    setTimeout(() => {
+        setCmdFeedback(null);
+        setQuery('');
+    }, 2000);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && isCommandMode && filteredCommands.length > 0) {
+        handleCommandExec(query);
+    }
+  };
 
   const onFocus = () => {
     if (query.length >= 2) setIsOpen(true);
@@ -113,6 +149,8 @@ export function GlobalSearch() {
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           {isLoading ? (
             <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+          ) : isCommandMode ? (
+            <Terminal className="w-4 h-4 text-emerald-400 animate-pulse" />
           ) : (
             <Search className="w-4 h-4 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
           )}
@@ -120,11 +158,14 @@ export function GlobalSearch() {
         <input
           ref={inputRef}
           type="text"
-          className="block w-full pl-11 pr-11 py-3 bg-zinc-900 border border-zinc-800 rounded-2xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all text-sm backdrop-blur-md shadow-lg"
-          placeholder="Global Omni-Search (Ctrl+K) – name, email, project..."
+          className={`block w-full pl-11 pr-11 py-3 bg-zinc-900 border rounded-2xl text-white placeholder-zinc-500 focus:outline-none transition-all text-sm backdrop-blur-md shadow-lg ${
+            isCommandMode ? 'border-emerald-500/50 ring-2 ring-emerald-500/20' : 'border-zinc-800 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50'
+          }`}
+          placeholder={isCommandMode ? "Type empire command..." : "Global Omni-Search (Ctrl+K) – name, email, project..."}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={onFocus}
+          onKeyDown={onKeyDown}
         />
         {query && (
           <button 
@@ -135,6 +176,45 @@ export function GlobalSearch() {
           </button>
         )}
       </div>
+
+      {/* Command Results */}
+      {isCommandMode && (
+        <div className="absolute mt-3 w-full bg-zinc-950/90 border border-emerald-500/30 rounded-2xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200 backdrop-blur-2xl">
+           <div className="p-2 max-h-[400px] overflow-y-auto">
+                <div className="px-3 py-2 text-[10px] font-black text-emerald-500 uppercase tracking-widest border-b border-emerald-500/10 mb-1 flex items-center gap-2">
+                    <Command className="w-3 h-3" /> Execute Supreme Command
+                </div>
+                {filteredCommands.length > 0 ? (
+                    filteredCommands.map((cmd) => (
+                        <div 
+                            key={cmd.id}
+                            onClick={() => handleCommandExec(query || cmd.example)}
+                            className="flex items-center gap-4 p-3 hover:bg-emerald-500/10 rounded-xl cursor-pointer group transition-colors"
+                        >
+                            <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/30 text-emerald-400 group-hover:bg-emerald-500/20">
+                                {cmd.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-white tracking-tight">{cmd.label}</p>
+                                <p className="text-[10px] text-zinc-500 font-mono">{cmd.example}</p>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="p-4 text-center text-zinc-600 text-[10px] font-black uppercase tracking-widest">
+                        Unknown Command Pattern
+                    </div>
+                )}
+           </div>
+        </div>
+      )}
+
+      {/* Action Feedback Toast-like overlay */}
+      {cmdFeedback && (
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[300] bg-emerald-500 text-black px-6 py-3 rounded-full font-black uppercase tracking-[0.2em] text-[10px] shadow-[0_0_30px_rgba(16,185,129,0.5)] animate-in slide-in-from-top-4 duration-300">
+            {cmdFeedback}
+        </div>
+      )}
 
       {isOpen && (results.length > 0) && (
         <div className="absolute mt-3 w-full bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200 backdrop-blur-xl">

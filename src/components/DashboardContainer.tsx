@@ -64,6 +64,8 @@ import { CommandOrb } from '@/components/CommandOrb';
 import { ExpenseRadar } from '@/components/ExpenseRadar';
 import { SystemHealthGrid } from '@/components/SystemHealthGrid';
 import { SystemLogsConsole } from '@/components/SystemLogsConsole';
+import { EmpireMap } from '@/components/EmpireMap';
+import { SentienceStream } from '@/components/SentienceStream';
 import { OmniTask, EmpireContact, ExpenseItem, AppStats } from '@/lib/types';
 
 type Tab = 'pulse' | 'ops' | 'strategy' | 'comms' | 'systems';
@@ -225,9 +227,17 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                             totalCommissionsPaid={filteredData.totalCommissionsPaid}
                         />
 
-                        <PredictiveCashflow apps={filteredData.deployedApps} />
-
                         <PeriodComparison chartData={filteredData.globalChartData} />
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <div className="lg:col-span-2">
+                                <PredictiveCashflow apps={filteredData.deployedApps} />
+                            </div>
+                            <div className="lg:col-span-1">
+                                <SentienceStream />
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                             <div className="lg:col-span-1">
                                 <GoalsWidget totalCollected={filteredData.totalCollected} totalPending={filteredData.totalPending} />
@@ -280,7 +290,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <div className="h-[500px]">
-                                <WarRoom tasks={filteredData.tasks} />
+                                <EmpireMap stats={filteredData.deployedApps} />
                             </div>
                             <div className="h-[500px]">
                                 <GlobalActivityStream allStats={filteredData.stats} />
@@ -294,6 +304,12 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                         <h2 className="text-xl font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                              <TrendingUp className="w-6 h-6" /> Strategic Intelligence Lab
                         </h2>
+
+                        {/* Visual Empire Topography */}
+                        <div className="w-full h-[600px] mb-8">
+                            <EmpireMap stats={filteredData.deployedApps} />
+                        </div>
+
                         {/* Deep Data: Whale Tracker + Expense Radar */}
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                             <div className="h-[600px]">
