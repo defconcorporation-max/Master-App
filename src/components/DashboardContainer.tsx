@@ -98,6 +98,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
     const [isGhostMode, setIsGhostMode] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [opsView, setOpsView] = useState<'board' | 'calendar'>('board');
+    const [localTasks, setLocalTasks] = useState<OmniTask[]>([]);
     const [selectedEntity, setSelectedEntity] = useState<OmniTask | EmpireContact | ExpenseItem | null>(null);
     const router = useRouter();
 
@@ -136,9 +137,9 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
             totalUsers,
             totalActivity,
             stats: { ...data.stats, auclaire: apps.find((a) => a.id === 'auclaire') ?? data.stats.auclaire, defcon: apps.find((a) => a.id === 'defcon') ?? data.stats.defcon, antigravity: apps.find((a) => a.id === 'antigravity') ?? data.stats.antigravity, drs: apps.find((a) => a.id === 'drs') ?? data.stats.drs },
-            tasks: data.tasks,
+            tasks: [...data.tasks, ...localTasks].filter(t => selectedApps.includes(t.appName.toLowerCase().split(' ')[0] as any)),
         };
-    }, [data, selectedApps, dateRange]);
+    }, [data, selectedApps, dateRange, localTasks]);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -164,10 +165,23 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
             const { command } = e.detail;
             if (command.startsWith('/ghost')) setIsGhostMode(prev => !prev);
             if (command.startsWith('/cinema')) setPresentationMode(prev => !prev);
+            if (command.startsWith('/task ')) {
+                const title = command.replace('/task ', '').trim();
+                const newTask: OmniTask = {
+                    id: `local-${Date.now()}`,
+                    appName: 'Master app',
+                    title: title,
+                    status: 'todo',
+                    priority: 'medium',
+                    date: new Date().toISOString()
+                };
+                setLocalTasks(prev => [newTask, ...prev]);
+            }
             if (command.startsWith('/reset')) {
                 setIsGhostMode(false);
                 setPresentationMode(false);
                 setActiveTab('pulse');
+                setSelectedApps(['auclaire', 'defcon', 'antigravity', 'drs']);
             }
         };
 
@@ -189,6 +203,14 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
         { id: 'comms', label: 'Comms', icon: <MessageSquare className="w-5 h-5" />, description: 'Messaging', status: 'normal' },
         { id: 'systems', label: 'Systems', icon: <Shield className="w-5 h-5" />, description: 'Core Infra', status: 'secure' },
     ];
+
+    const handleMapSelect = (id: string | 'all') => {
+        if (id === 'all') {
+            setSelectedApps(['auclaire', 'defcon', 'antigravity', 'drs']);
+        } else {
+            setSelectedApps([id as AppId]);
+        }
+    };
 
     const handleExportCSV = () => {
         const csv = buildStatsCSV({
@@ -306,7 +328,11 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <div className="h-[500px]">
-                                <EmpireMap stats={filteredData.deployedApps} isGhostMode={isGhostMode} />
+                                <EmpireMap 
+                                    stats={filteredData.deployedApps} 
+                                    isGhostMode={isGhostMode} 
+                                    onAppSelect={handleMapSelect}
+                                />
                             </div>
                             <div className="h-[500px]">
                                 <GlobalActivityStream allStats={filteredData.stats} />
@@ -323,7 +349,11 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
 
                         {/* Visual Empire Topography */}
                         <div className="w-full h-[600px] mb-8">
-                            <EmpireMap stats={filteredData.deployedApps} isGhostMode={isGhostMode} />
+                            <EmpireMap 
+                                stats={filteredData.deployedApps} 
+                                isGhostMode={isGhostMode} 
+                                onAppSelect={handleMapSelect}
+                            />
                         </div>
 
                         {/* Deep Data: Whale Tracker + Expense Radar */}

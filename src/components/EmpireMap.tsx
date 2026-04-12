@@ -7,9 +7,10 @@ import { AppStats } from '@/lib/types';
 interface EmpireMapProps {
     stats: AppStats[];
     isGhostMode?: boolean;
+    onAppSelect?: (appId: string | 'all') => void;
 }
 
-export function EmpireMap({ stats, isGhostMode = false }: EmpireMapProps) {
+export function EmpireMap({ stats, isGhostMode = false, onAppSelect }: EmpireMapProps) {
     const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
     // Node Positions (Relative to 800x600 canvas)
@@ -81,7 +82,8 @@ export function EmpireMap({ stats, isGhostMode = false }: EmpireMapProps) {
                             key={node.id} 
                             onMouseEnter={() => setHoveredNode(node.id)}
                             onMouseLeave={() => setHoveredNode(null)}
-                            className="cursor-pointer"
+                            onClick={() => onAppSelect?.(node.isCenter ? 'all' : (node.id as any))}
+                            className="cursor-pointer group/node"
                         >
                             {/* Glow Ring */}
                             <circle
