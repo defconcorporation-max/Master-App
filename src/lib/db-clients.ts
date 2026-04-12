@@ -561,11 +561,11 @@ export async function searchGlobal(query: string): Promise<SearchResult[]> {
     if (turso) {
         try {
             const clientRes = await turso.execute({
-                sql: "SELECT id, name, email FROM clients WHERE name LIKE ? OR email LIKE ? LIMIT 5",
-                args: [`%${query}%`, `%${query}%`]
+                sql: "SELECT * FROM clients WHERE name LIKE ? LIMIT 5",
+                args: [`%${query}%`]
             });
             const shootRes = await turso.execute({
-                sql: "SELECT id, title FROM shoots WHERE title LIKE ? LIMIT 5",
+                sql: "SELECT * FROM shoots WHERE title LIKE ? LIMIT 5",
                 args: [`%${query}%`]
             });
 
@@ -573,8 +573,8 @@ export async function searchGlobal(query: string): Promise<SearchResult[]> {
                 id: `def-c-${r.id}`,
                 appName: 'Defcon App',
                 type: 'client',
-                title: String(r.name),
-                subtitle: String(r.email)
+                title: String(r.name || r.first_name || 'Client'),
+                subtitle: String(r.email || r.contact_email || '')
             }));
             shootRes.rows.forEach(r => results.push({
                 id: `def-s-${r.id}`,
@@ -780,28 +780,37 @@ export async function fetchOmniCRM(): Promise<EmpireContact[]> {
         }
     }
 
-    // 2. Defcon (Clients table)
+    // 2. Defcon (Clients table — use SELECT * for schema safety)
     if (turso) {
         try {
-            const res = await turso.execute("SELECT id, name, email, created_at FROM clients");
-            const payments = await turso.execute("SELECT client_id, amount FROM payments WHERE status='paid' OR status='completed'");
+            const res = await turso.execute("SELECT * FROM clients");
+            let payments: any = { rows: [] };
+            try {
+                payments = await turso.execute("SELECT client_id, amount, status FROM payments");
+            } catch (e) {}
             
             const ltvMap = new Map<string, number>();
-            payments.rows.forEach(p => {
-                const cid = String(p.client_id);
-                ltvMap.set(cid, (ltvMap.get(cid) || 0) + Number(p.amount || 0));
+            payments.rows.forEach((p: any) => {
+                const st = String(p.status || '').toLowerCase();
+                if (st === 'paid' || st === 'completed') {
+                    const cid = String(p.client_id);
+                    ltvMap.set(cid, (ltvMap.get(cid) || 0) + Number(p.amount || 0));
+                }
             });
 
             res.rows.forEach(r => {
                 const cid = String(r.id);
                 const ltv = ltvMap.get(cid) || 0;
+                const name = String(r.name || r.first_name || r.contact_name || 'Anonyme');
+                const email = String(r.email || r.contact_email || '');
                 clients.push({
                     id: `def-${cid}`,
-                    name: String(r.name || 'Anonyme'),
-                    email: String(r.email || 'Pas d\'email'),
+                    name: name,
+                    email: email || 'Pas d\'email',
+                    phone: r.phone ? String(r.phone) : undefined,
                     appName: 'Defcon',
                     status: ltv > 10000 ? 'vip' : (ltv > 0 ? 'active' : 'lead'),
-                    lastActive: String(r.created_at || new Date().toISOString()),
+                    lastActive: String(r.created_at || r.date || new Date().toISOString()),
                     lifetimeValue: ltv,
                     metrics: ltv > 0 ? 'Client Confirmé' : 'Prospect'
                 });
@@ -877,7 +886,7 @@ export async function fetchExpenseBreakdown(): Promise<ExpenseItem[]> {
     // 1. Defcon expenses
     if (turso) {
         try {
-            const res = await turso.execute("SELECT id, category, description, amount, date FROM expenses ORDER BY date DESC LIMIT 100");
+            const res = await turso.execute("SELECT * FROM expenses ORDER BY date DESC LIMIT 100");
             res.rows.forEach(r => {
                 items.push({
                     id: `def-exp-${r.id}`,
