@@ -25,7 +25,7 @@ export function WealthForecast({ stats, tasks }: WealthForecastProps) {
     const getPerc = (val: number) => (val / metrics.totalValue) * 100;
 
     return (
-        <div className="glass-panel p-8 relative overflow-hidden group">
+        <div className="glass-panel p-5 md:p-8 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 blur-[100px] pointer-events-none" />
             
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">

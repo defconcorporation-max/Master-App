@@ -57,7 +57,7 @@ export function CyberPulseSynthesis({ stats, tasks }: CyberPulseSynthesisProps) 
             {/* Ambient Background */}
             <div className="absolute inset-0 bg-blue-500/5 backdrop-blur-3xl rounded-[2.5rem] border border-white/5 shadow-2xl transition-all duration-700 group-hover:bg-blue-500/10" />
             
-            <div className="relative p-8 flex flex-col lg:flex-row items-start lg:items-center gap-10">
+            <div className="relative p-5 md:p-8 flex flex-col lg:flex-row items-start lg:items-center gap-10">
                 {/* AI Core Animation */}
                 <div className="relative flex-shrink-0">
                     <div className="w-20 h-20 rounded-full bg-blue-500/20 border-2 border-blue-500/30 flex items-center justify-center animate-pulse shadow-[0_0_30px_rgba(59,130,246,0.3)]">

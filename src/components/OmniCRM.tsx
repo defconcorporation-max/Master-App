@@ -133,11 +133,11 @@ export function OmniCRM() {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="border-b border-white/5 bg-black/20">
-                                    <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Identité</th>
-                                    <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Origine</th>
-                                    <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Statut & Valeur</th>
-                                    <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Activité Récente</th>
-                                    <th className="px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Actions</th>
+                                    <th className="px-3 md:px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Identité</th>
+                                    <th className="hidden lg:table-cell px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Origine</th>
+                                    <th className="px-3 md:px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Statut & Valeur</th>
+                                    <th className="hidden md:table-cell px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest">Activité Récente</th>
+                                    <th className="px-3 md:px-6 py-4 text-[9px] font-black text-slate-500 uppercase tracking-widest text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/[0.02]">
@@ -147,7 +147,7 @@ export function OmniCRM() {
                                         className="group hover:bg-white/[0.02] transition-colors cursor-pointer"
                                         onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: contact }))}
                                     >
-                                        <td className="px-6 py-4">
+                                        <td className="px-3 md:px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/5 flex items-center justify-center text-xs font-bold text-slate-400 shrink-0 group-hover:border-indigo-500/30 group-hover:text-indigo-400 transition-colors">
                                                     {contact.name.charAt(0).toUpperCase()}
@@ -183,7 +183,7 @@ export function OmniCRM() {
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td className="hidden md:table-cell px-6 py-4">
                                             <div className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
                                                 <Calendar className="w-3 h-3 text-slate-500" />
                                                 {(() => {

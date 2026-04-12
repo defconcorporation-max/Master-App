@@ -16,7 +16,8 @@ import {
     Minimize2,
     Boxes,
     Map,
-    Terminal
+    Terminal,
+    Menu
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -92,6 +93,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
     const [dateRange, setDateRange] = useState<DateRange>('30d');
     const [viewMode, setViewMode] = useState<ViewMode>('empire');
     const [presentationMode, setPresentationMode] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [opsView, setOpsView] = useState<'board' | 'calendar'>('board');
     const [selectedEntity, setSelectedEntity] = useState<OmniTask | EmpireContact | ExpenseItem | null>(null);
     const router = useRouter();
@@ -405,8 +407,19 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
             <div className="ambient-glow ambient-cyan" />
             <div className="ambient-glow ambient-indigo" />
 
+            {/* Mobile Backdrop */}
+            {isSidebarOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] md:hidden animate-in fade-in transition-all duration-300"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
             {/* Minimal & Powerful Jewel Sidebar */}
-            <aside className={`w-72 m-4 rounded-[2rem] glass-panel flex flex-col z-20 transition-all duration-300 ${presentationMode ? 'hidden' : ''}`}>
+            <aside className={`fixed md:relative inset-y-0 left-0 w-72 md:w-72 m-4 rounded-[2rem] glass-panel flex flex-col z-[110] md:z-20 transition-all duration-500 ease-in-out
+                ${isSidebarOpen ? 'translate-x-0' : '-translate-x-[110%] md:translate-x-0'}
+                ${presentationMode ? 'hidden' : ''}
+            `}>
                 <div className="p-6 pb-4">
                     <div className="flex items-center gap-3 mb-10">
                         <div className="w-10 h-10 bg-indigo-500/20 rounded-2xl flex items-center justify-center border border-indigo-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]">
@@ -428,6 +441,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                                     } else {
                                         setActiveTab(item.id as Tab);
                                     }
+                                    if (window.innerWidth < 768) setIsSidebarOpen(false);
                                 }}
                                 className={`w-full group flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 ${
                                     activeTab === item.id 
@@ -488,7 +502,24 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
             />
 
             {/* Main Content Area */}
-            <main className={`flex-1 overflow-y-auto scrollbar-hide transition-all duration-700 z-10 ${presentationMode ? 'p-0 bg-[#020617]' : 'p-8 md:p-10'}`}>
+            <main className={`flex-1 overflow-y-auto scrollbar-hide transition-all duration-700 z-10 ${presentationMode ? 'p-0 bg-[#020617]' : 'p-4 md:p-8 lg:p-10'}`}>
+                
+                {/* Mobile Header Toggle */}
+                <div className={`flex items-center justify-between mb-4 md:hidden transition-all duration-500 ${presentationMode ? 'opacity-0 h-0 p-0 mb-0 overflow-hidden' : 'p-2'}`}>
+                    <button 
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="p-3 bg-white/5 border border-white/10 rounded-2xl text-zinc-400 hover:text-white transition-all shadow-xl"
+                    >
+                        <Menu className="w-6 h-6" />
+                    </button>
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center border border-blue-500/20">
+                            <LayoutDashboard className="w-4 h-4 text-blue-400" />
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest text-white">Ops Center</span>
+                    </div>
+                </div>
+
                 <header className={`flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6 transition-all duration-500 ${presentationMode ? 'opacity-0 h-0 p-0 mb-0 overflow-hidden' : 'opacity-100'}`}>
                     <div className="flex-1 max-w-2xl">
                         <GlobalSearch />

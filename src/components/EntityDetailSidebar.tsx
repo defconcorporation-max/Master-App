@@ -84,7 +84,7 @@ export function EntityDetailSidebar({ entity, onClose }: EntityDetailSidebarProp
             />
 
             {/* Sidebar Panel */}
-            <aside className="fixed top-0 right-0 h-full w-full max-w-lg bg-zinc-950/80 backdrop-blur-3xl border-l border-white/10 z-[101] shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col">
+            <aside className="fixed top-0 right-0 h-full w-full sm:max-w-lg bg-zinc-950/80 backdrop-blur-3xl border-l border-white/10 z-[101] shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col">
                 {/* Header Decoration */}
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-emerald-500 to-purple-500 opacity-50" />
                 
@@ -109,7 +109,7 @@ export function EntityDetailSidebar({ entity, onClose }: EntityDetailSidebarProp
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
+                <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-6 md:space-y-8 scrollbar-hide">
                     
                     {/* Primary Stats section */}
                     <div className="grid grid-cols-2 gap-4">
@@ -308,7 +308,7 @@ export function EntityDetailSidebar({ entity, onClose }: EntityDetailSidebarProp
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-6 bg-black/40 border-t border-white/5 flex gap-3">
+                <div className="p-5 md:p-6 bg-black/40 border-t border-white/5 flex flex-wrap gap-3">
                     <button className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-black uppercase text-zinc-300 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center gap-2">
                         <MoreHorizontal className="w-4 h-4" /> Détails Complets
                     </button>
