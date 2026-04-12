@@ -95,6 +95,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
     const [dateRange, setDateRange] = useState<DateRange>('30d');
     const [viewMode, setViewMode] = useState<ViewMode>('empire');
     const [presentationMode, setPresentationMode] = useState(false);
+    const [isGhostMode, setIsGhostMode] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [opsView, setOpsView] = useState<'board' | 'calendar'>('board');
     const [selectedEntity, setSelectedEntity] = useState<OmniTask | EmpireContact | ExpenseItem | null>(null);
@@ -159,11 +160,24 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
             }
         };
 
+        const onCommand = (e: any) => {
+            const { command } = e.detail;
+            if (command.startsWith('/ghost')) setIsGhostMode(prev => !prev);
+            if (command.startsWith('/cinema')) setPresentationMode(prev => !prev);
+            if (command.startsWith('/reset')) {
+                setIsGhostMode(false);
+                setPresentationMode(false);
+                setActiveTab('pulse');
+            }
+        };
+
         window.addEventListener('keydown', onKey);
         window.addEventListener('entity-selected' as any, onEntitySelect);
+        window.addEventListener('command-executed' as any, onCommand);
         return () => {
             window.removeEventListener('keydown', onKey);
             window.removeEventListener('entity-selected' as any, onEntitySelect);
+            window.removeEventListener('command-executed' as any, onCommand);
         };
     }, []);
 
@@ -199,6 +213,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                         <WealthForecast 
                             stats={filteredData.deployedApps} 
                             tasks={filteredData.tasks} 
+                            isGhostMode={isGhostMode}
                         />
 
                         {/* Intelligent Tactical Briefing */}
@@ -225,6 +240,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                             totalPending={filteredData.totalPending} 
                             totalExpenses={filteredData.totalExpenses}
                             totalCommissionsPaid={filteredData.totalCommissionsPaid}
+                            isGhostMode={isGhostMode}
                         />
 
                         <PeriodComparison chartData={filteredData.globalChartData} />
@@ -290,7 +306,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                             <div className="h-[500px]">
-                                <EmpireMap stats={filteredData.deployedApps} />
+                                <EmpireMap stats={filteredData.deployedApps} isGhostMode={isGhostMode} />
                             </div>
                             <div className="h-[500px]">
                                 <GlobalActivityStream allStats={filteredData.stats} />
@@ -307,7 +323,7 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
 
                         {/* Visual Empire Topography */}
                         <div className="w-full h-[600px] mb-8">
-                            <EmpireMap stats={filteredData.deployedApps} />
+                            <EmpireMap stats={filteredData.deployedApps} isGhostMode={isGhostMode} />
                         </div>
 
                         {/* Deep Data: Whale Tracker + Expense Radar */}

@@ -7,9 +7,10 @@ import { DollarSign, ArrowRight, Zap, TrendingUp, Briefcase } from 'lucide-react
 interface WealthForecastProps {
     stats: AppStats[];
     tasks: OmniTask[];
+    isGhostMode?: boolean;
 }
 
-export function WealthForecast({ stats, tasks }: WealthForecastProps) {
+export function WealthForecast({ stats, tasks, isGhostMode = false }: WealthForecastProps) {
     const metrics = useMemo(() => {
         const collected = stats.reduce((acc, s) => acc + (s.financials.collected || 0), 0);
         const pending = stats.reduce((acc, s) => acc + (s.financials.pending || 0), 0);
@@ -35,7 +36,7 @@ export function WealthForecast({ stats, tasks }: WealthForecastProps) {
                     </h3>
                     <div className="flex items-baseline gap-3">
                         <span className="text-5xl font-black text-white tracking-tighter">
-                            ${metrics.totalValue.toLocaleString()}
+                            {isGhostMode ? '$ *****' : `$${metrics.totalValue.toLocaleString()}`}
                         </span>
                         <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Total Valuation</span>
                     </div>
@@ -44,7 +45,7 @@ export function WealthForecast({ stats, tasks }: WealthForecastProps) {
                 <div className="flex gap-4">
                     <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center">
                         <p className="text-[9px] font-black text-emerald-500 uppercase">Growth Pot.</p>
-                        <p className="text-lg font-black text-white">+{((metrics.backlogValue / (metrics.collected + metrics.pending)) * 100).toFixed(0)}%</p>
+                        <p className="text-lg font-black text-white">{isGhostMode ? '***%' : `+${((metrics.backlogValue / (metrics.collected + metrics.pending)) * 100).toFixed(0)}%`}</p>
                     </div>
                 </div>
             </div>
@@ -81,21 +82,21 @@ export function WealthForecast({ stats, tasks }: WealthForecastProps) {
                         <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
                         <div>
                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Réalisé (Cash)</p>
-                            <p className="text-sm font-bold text-white">${metrics.collected.toLocaleString()}</p>
+                            <p className="text-sm font-bold text-white">{isGhostMode ? '$ *****' : `$${metrics.collected.toLocaleString()}`}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                         <div>
                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">En cours (Pending)</p>
-                            <p className="text-sm font-bold text-white">${metrics.pending.toLocaleString()}</p>
+                            <p className="text-sm font-bold text-white">{isGhostMode ? '$ *****' : `$${metrics.pending.toLocaleString()}`}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="w-3 h-3 rounded-full bg-zinc-600 shadow-[0_0_10px_rgba(82,82,91,0.5)]" />
                         <div>
                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Potentiel (Backlog)</p>
-                            <p className="text-sm font-bold text-white">${metrics.backlogValue.toLocaleString()}</p>
+                            <p className="text-sm font-bold text-white">{isGhostMode ? '$ *****' : `$${metrics.backlogValue.toLocaleString()}`}</p>
                         </div>
                     </div>
                 </div>

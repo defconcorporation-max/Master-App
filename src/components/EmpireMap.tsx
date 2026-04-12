@@ -6,9 +6,10 @@ import { AppStats } from '@/lib/types';
 
 interface EmpireMapProps {
     stats: AppStats[];
+    isGhostMode?: boolean;
 }
 
-export function EmpireMap({ stats }: EmpireMapProps) {
+export function EmpireMap({ stats, isGhostMode = false }: EmpireMapProps) {
     const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
     // Node Positions (Relative to 800x600 canvas)
@@ -146,7 +147,7 @@ export function EmpireMap({ stats }: EmpireMapProps) {
                                 <DollarSign className="w-3 h-3" /> Revenu
                             </span>
                             <span className="text-xs font-black text-emerald-400">
-                                ${getAppStats(hoveredNode)?.financials.collected.toLocaleString() || '0'}
+                                {isGhostMode ? '*****' : `$${getAppStats(hoveredNode)?.financials.collected.toLocaleString() || '0'}`}
                             </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -154,7 +155,7 @@ export function EmpireMap({ stats }: EmpireMapProps) {
                                 <Users className="w-3 h-3" /> Utilisateurs
                             </span>
                             <span className="text-xs font-black text-white">
-                                {getAppStats(hoveredNode)?.users.toLocaleString() || '0'}
+                                {isGhostMode ? '***' : (getAppStats(hoveredNode)?.users.toLocaleString() || '0')}
                             </span>
                         </div>
                         <div className="pt-2 border-t border-white/5">

@@ -9,6 +9,7 @@ interface PortfolioProps {
     totalPending: number;
     totalCommissionsPaid: number;
     totalExpenses: number;
+    isGhostMode?: boolean;
 }
 
 const EXCHANGE_RATES = {
@@ -22,11 +23,13 @@ export function GlobalFinancialPortfolio({
     totalBilled, 
     totalPending, 
     totalCommissionsPaid, 
-    totalExpenses 
+    totalExpenses,
+    isGhostMode = false
 }: PortfolioProps) {
     const [currency, setCurrency] = useState<'USD' | 'EUR' | 'GBP'>('USD');
 
     const format = (value: number) => {
+        if (isGhostMode) return '$ *****';
         const converted = value * EXCHANGE_RATES[currency];
         return new Intl.NumberFormat('en-US', {
             style: 'currency',

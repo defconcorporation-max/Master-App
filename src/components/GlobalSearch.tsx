@@ -107,6 +107,7 @@ export function GlobalSearch() {
 
   const handleCommandExec = (cmd: string) => {
     setCmdFeedback(`Executing: ${cmd}...`);
+    window.dispatchEvent(new CustomEvent('command-executed', { detail: { command: cmd } }));
     setTimeout(() => {
         setCmdFeedback(null);
         setQuery('');
