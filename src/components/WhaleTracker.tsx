@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { EmpireContact, fetchOmniCRM } from '@/lib/db-clients';
+import { EmpireContact } from '@/lib/types';
+import { getOmniCRMData } from '@/lib/server-actions';
 import { Crown, TrendingUp, Users, ArrowUpRight, Zap, Star } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -12,7 +13,7 @@ export function WhaleTracker() {
 
     useEffect(() => {
         let mounted = true;
-        fetchOmniCRM().then(data => {
+        getOmniCRMData().then(data => {
             if (mounted) { setContacts(data); setLoading(false); }
         });
         return () => { mounted = false; };

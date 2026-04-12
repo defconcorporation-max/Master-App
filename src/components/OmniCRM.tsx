@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { EmpireContact, fetchOmniCRM } from '@/lib/db-clients';
+import { EmpireContact } from '@/lib/types';
+import { getOmniCRMData } from '@/lib/server-actions';
 import { 
     Users, Search, Filter, Shield, Star, 
     TrendingUp, Mail, Phone, Calendar, ArrowUpRight,
@@ -19,7 +20,7 @@ export function OmniCRM() {
 
     useEffect(() => {
         let mounted = true;
-        fetchOmniCRM().then((data) => {
+        getOmniCRMData().then((data) => {
             if (mounted) {
                 setContacts(data);
                 setLoading(false);

@@ -38,52 +38,10 @@ const drsSupabaseUrl = (process.env.DRS_SUPABASE_URL || '').trim();
 const drsSupabaseKey = (process.env.DRS_SUPABASE_SERVICE_ROLE_KEY || process.env.DRS_SUPABASE_KEY || '').trim();
 export const drsSupabase = drsSupabaseUrl && drsSupabaseKey ? createSupabaseClient(drsSupabaseUrl, drsSupabaseKey) : null;
 
-export interface ChartDataPoint {
-    date: string; // ISO string 'YYYY-MM-DD'
-    revenue: number;
-    expenses?: number;
-}
+// Re-export all shared types from the client-safe types module
+export type { ChartDataPoint, ActivityType, AppActivity, SearchResult, AppStats, OmniTask, EmpireContact, ExpenseItem } from '@/lib/types';
+import type { ChartDataPoint, ActivityType, AppActivity, SearchResult, AppStats, OmniTask, EmpireContact, ExpenseItem } from '@/lib/types';
 
-export type ActivityType = 'invoice_created' | 'payment_collected' | 'expense_logged' | 'project_created' | 'commission_paid' | 'other';
-
-export interface AppActivity {
-    id: string;
-    appName: string;
-    type: ActivityType;
-    title: string;
-    description: string;
-    amount?: number;
-    date: string; // ISO string for sorting
-    clientName?: string;
-    metadata?: string; // Information about payment type (deposit vs full), invoice description, etc.
-}
-
-export interface SearchResult {
-    id: string;
-    appName: string;
-    type: 'client' | 'project' | 'invoice' | 'job' | 'other';
-    title: string;
-    subtitle?: string;
-}
-
-export interface AppStats {
-    id?: 'auclaire' | 'defcon' | 'antigravity' | 'drs';
-    name: string;
-    users: number;
-    financials: {
-        billed: number;
-        collected: number;
-        pending: number;
-        expenses: number;
-        commissionsPaid?: number; // Added to explicitly track commissions 
-        profit: number;
-    };
-    tasks: number; // General activity counter
-    chartData: ChartDataPoint[];
-    activityFeed?: AppActivity[];
-    status: 'online' | 'error' | 'offline';
-    errorMsg?: string;
-}
 
 export async function fetchGlobalStats(force: boolean = false): Promise<{ auclaire: AppStats, defcon: AppStats, antigravity: AppStats, drs: AppStats }> {
     const now = Date.now();
@@ -678,20 +636,6 @@ export async function searchGlobal(query: string): Promise<SearchResult[]> {
     return results;
 }
 
-export interface OmniTask {
-    id: string;
-    appName: string;
-    title: string;
-    status: 'backlog' | 'todo' | 'in_progress' | 'done';
-    priority: 'low' | 'medium' | 'high' | 'critical';
-    date: string;
-    stage?: string;        // Auclaire pipeline: designing, 3d_model, production, delivery, etc.
-    jewelryType?: string | null;  // Bague, Collier, Bracelet, etc.
-    budget?: number;       // Sale price
-    clientName?: string;
-    endDate?: string;
-    hasSpecificTime?: boolean;
-}
 
 export async function fetchOmniTasks(): Promise<OmniTask[]> {
     const tasks: OmniTask[] = [];
@@ -799,17 +743,6 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
     return tasks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export interface EmpireContact {
-    id: string;
-    name: string;
-    email: string;
-    phone?: string;
-    appName: string;
-    status: 'vip' | 'active' | 'lead' | 'cold';
-    lastActive: string;
-    lifetimeValue: number;
-    metrics: string; // Brief one-liner of what they did (e.g. "2 shoots", "1 ring")
-}
 
 export async function fetchOmniCRM(): Promise<EmpireContact[]> {
     const clients: EmpireContact[] = [];
@@ -937,14 +870,6 @@ export async function fetchOmniCRM(): Promise<EmpireContact[]> {
 }
 
 // --- Expense Breakdown Intelligence ---
-export interface ExpenseItem {
-    id: string;
-    appName: string;
-    category: string;
-    description: string;
-    amount: number;
-    date: string;
-}
 
 export async function fetchExpenseBreakdown(): Promise<ExpenseItem[]> {
     const items: ExpenseItem[] = [];

@@ -11,14 +11,15 @@ import {
     ArrowUpRight,
     Award
 } from 'lucide-react';
-import { EmpireContact, fetchOmniCRM } from '@/lib/db-clients';
+import { EmpireContact } from '@/lib/types';
+import { getOmniCRMData } from '@/lib/server-actions';
 
 export function LoyaltyPredictor() {
     const [clients, setClients] = React.useState<EmpireContact[]>([]);
 
     React.useEffect(() => {
         let mounted = true;
-        fetchOmniCRM().then(data => {
+        getOmniCRMData().then(data => {
             if (mounted) setClients(data);
         });
         return () => { mounted = false; };

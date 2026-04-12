@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { ExpenseItem, fetchExpenseBreakdown } from '@/lib/db-clients';
+import { ExpenseItem } from '@/lib/types';
+import { getExpenseBreakdownData } from '@/lib/server-actions';
 import { PieChart, DollarSign, TrendingDown, ArrowDown, Calendar, Layers } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -12,7 +13,7 @@ export function ExpenseRadar() {
 
     useEffect(() => {
         let mounted = true;
-        fetchExpenseBreakdown().then(data => {
+        getExpenseBreakdownData().then(data => {
             if (mounted) { setExpenses(data); setLoading(false); }
         });
         return () => { mounted = false; };
