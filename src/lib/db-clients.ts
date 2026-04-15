@@ -107,11 +107,14 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             // Count clients for 'users'
             const { count: userCount, error: userError } = await supabase.from('clients').select('*', { count: 'exact', head: true });
             
-            // Extract all invoices to calculate billed, collected, pending, and time-series
-            const { data: invData, error: invError } = await supabase.from('invoices').select('amount, amount_paid, created_at, paid_at, status');
+            // Extract all invoices with project titles
+            const { data: invData, error: invError } = await supabase.from('invoices').select(`
+                amount, amount_paid, created_at, paid_at, status,
+                projects ( title, client_id, clients ( full_name ) )
+            `);
             
-            // Extract all expenses
-            const { data: expData, error: expError } = await supabase.from('expenses').select('amount, date, status, created_at, category');
+            // Extract all expenses with descriptions
+            const { data: expData, error: expError } = await supabase.from('expenses').select('amount, date, status, created_at, category, description');
 
             let billed = 0;
             let collected = 0;
@@ -173,25 +176,30 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             // Generate Activity Feed
             const activities: AppActivity[] = [];
             if (invData) {
-                invData.forEach((inv, i) => {
+                invData.forEach((inv: any, i) => {
+                    const project = Array.isArray(inv.projects) ? inv.projects[0] : inv.projects;
+                    const projectTitle = project?.title || 'Unknown Project';
+                    const client = Array.isArray(project?.clients) ? project.clients[0] : project?.clients;
+                    const clientName = client?.full_name || 'Generic Client';
+                    
                     if (inv.created_at) {
                         activities.push({
                             id: `auc-inv-c-${inv.created_at}-${Math.random()}`,
                             appName: 'Auclaire APP',
                             type: 'invoice_created',
                             title: 'Invoice Issued',
-                            description: `An invoice for $${inv.amount} was generated`,
+                            description: `Invoice for $${inv.amount} generated for ${projectTitle} (${clientName})`,
                             amount: Number(inv.amount),
                             date: new Date(inv.created_at).toISOString()
                         });
                     }
-                    if (inv.status === 'paid' && inv.paid_at) {
+                    if ((inv.status === 'paid' || inv.status === 'completed') && inv.paid_at) {
                         activities.push({
                             id: `auc-inv-p-${inv.paid_at}-${Math.random()}`,
                             appName: 'Auclaire APP',
                             type: 'payment_collected',
                             title: 'Payment Received',
-                            description: `Payment of $${inv.amount_paid} collected`,
+                            description: `Payment of $${inv.amount_paid} collected for ${projectTitle}`,
                             amount: Number(inv.amount_paid),
                             date: new Date(inv.paid_at).toISOString()
                         });
@@ -200,14 +208,14 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             }
             if (expData) {
                 expData.forEach((exp, i) => {
-                    const isPaid = !exp.status || exp.status === 'paid';
+                    const isPaid = !exp.status || exp.status === 'paid' || exp.status === 'completed';
                     if (isPaid && (exp.date || exp.created_at)) {
                         activities.push({
                             id: `auc-exp-${exp.date || exp.created_at}-${Math.random()}`,
                             appName: 'Auclaire APP',
                             type: exp.category === 'commission' ? 'commission_paid' : 'expense_logged',
                             title: exp.category === 'commission' ? 'Commission Paid' : 'Expense Logged',
-                            description: `Expense of $${exp.amount} recorded`,
+                            description: `${exp.description || 'Miscellaneous expense'} ($${exp.amount}) - ${exp.category || 'General'}`,
                             amount: Number(exp.amount),
                             date: new Date(exp.date || exp.created_at).toISOString()
                         });
@@ -447,8 +455,11 @@ path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
             // Fetch users (ClientProfile)
             const { count: userCount } = await drsSupabase.from('ClientProfile').select('*', { count: 'exact', head: true });
             
-            // Fetch jobs
-            const { data: jobs } = await drsSupabase.from('Job').select('totalPrice, status, updatedAt');
+            // Fetch jobs with client names
+            const { data: jobs } = await drsSupabase.from('Job').select(`
+                id, title, totalPrice, status, updatedAt,
+                client:ClientProfile ( firstName, lastName )
+            `);
             
             let billed = 0;
             let collected = 0;
@@ -460,6 +471,10 @@ path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
                     const price = Number(job.totalPrice) || 0;
                     billed += price;
                     const statusLower = (job.status || '').toLowerCase();
+                    const client = Array.isArray(job.client) ? job.client[0] : job.client;
+                    const clientName = client ? `${client.firstName} ${client.lastName}` : 'Direct Client';
+                    const jobTitle = job.title || 'Detailing Job';
+
                     if (statusLower === 'completed' || statusLower === 'paid') {
                         collected += price;
                         if (job.updatedAt) {
@@ -472,7 +487,7 @@ path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
                                     appName: 'DRS Auto Detailing',
                                     type: 'payment_collected',
                                     title: 'Job Completed',
-                                    description: `Detailing job of $${price} completed`,
+                                    description: `Job "${jobTitle}" for ${clientName} - $${price} collected`,
                                     amount: price,
                                     date: dateRaw.toISOString()
                                 });
