@@ -421,3 +421,110 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
     }
     return tasks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
+
+export async function fetchOmniCRM(): Promise<EmpireContact[]> {
+    const contacts: EmpireContact[] = [];
+    
+    // 1. Auclaire (Supabase)
+    if (supabase) {
+        try {
+            const { data } = await supabase.from('clients').select('id, full_name, email, phone, created_at').limit(50);
+            data?.forEach(c => contacts.push({
+                id: `auc-${c.id}`, appName: 'Auclaire APP', name: c.full_name, email: c.email, phone: c.phone || '',
+                type: 'client', lastActive: c.created_at || new Date().toISOString()
+            }));
+        } catch (e) {}
+    }
+
+    // 2. Defcon (Turso)
+    if (turso) {
+        try {
+            const res = await turso.execute("SELECT * FROM clients LIMIT 50");
+            res.rows.forEach(r => contacts.push({
+                id: `def-${r.id}`, appName: 'Defcon App', name: String(r.name || 'Client'), email: String(r.email || ''),
+                phone: String(r.phone || ''), type: 'client', lastActive: new Date().toISOString()
+            }));
+        } catch (e) {}
+    }
+
+    // 3. DRS (Supabase)
+    if (drsSupabase) {
+        try {
+            const { data } = await drsSupabase.from('ClientProfile').select('id, firstName, lastName, user(email, phone), createdAt').limit(50);
+            data?.forEach((c: any) => contacts.push({
+                id: `drs-${c.id}`, appName: 'DRS Auto Detailing', name: `${c.firstName} ${c.lastName}`,
+                email: c.user?.email || '', phone: c.user?.phone || '', type: 'client', lastActive: c.createdAt || new Date().toISOString()
+            }));
+        } catch (e) {}
+    }
+
+    return contacts.sort((a, b) => new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime());
+}
+
+export async function fetchExpenseBreakdown(): Promise<ExpenseItem[]> {
+    const items: ExpenseItem[] = [];
+
+    // 1. Auclaire (Supabase)
+    if (supabase) {
+        try {
+            const { data } = await supabase.from('expenses').select('id, category, amount, description, date').order('date', { ascending: false }).limit(100);
+            data?.forEach(e => items.push({
+                id: `auc-exp-${e.id}`, appName: 'Auclaire APP', category: e.category || 'Général',
+                description: e.description || '', amount: Number(e.amount || 0), date: e.date || new Date().toISOString()
+            }));
+        } catch (e) {}
+    }
+
+    // 2. DRS (Supabase)
+    if (drsSupabase) {
+        try {
+            const { data } = await drsSupabase.from('Expense').select('id, category, description, amount, createdAt').order('createdAt', { ascending: false }).limit(100);
+            data?.forEach(e => items.push({
+                id: `drs-exp-${e.id}`, appName: 'DRS Auto Detailing', category: e.category || 'Maintenance',
+                description: e.description || '', amount: Number(e.amount || 0), date: e.createdAt || new Date().toISOString()
+            }));
+        } catch (e) {}
+    }
+
+    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+export async function searchGlobal(query: string): Promise<SearchResult[]> {
+    if (!query || query.length < 2) return [];
+    const results: SearchResult[] = [];
+    const lowerQuery = query.toLowerCase();
+
+    // 1. Auclaire (Supabase)
+    if (supabase) {
+        try {
+            const [clientRes, projectRes] = await Promise.all([
+                supabase.from('clients').select('id, full_name, email').or(`full_name.ilike.%${query}%,email.ilike.%${query}%`).limit(5),
+                supabase.from('projects').select('id, title').ilike('title', `%${query}%`).limit(5)
+            ]);
+            clientRes.data?.forEach(c => results.push({ id: `auc-c-${c.id}`, appName: 'Auclaire APP', type: 'client', title: c.full_name, subtitle: c.email }));
+            projectRes.data?.forEach(p => results.push({ id: `auc-p-${p.id}`, appName: 'Auclaire APP', type: 'project', title: p.title, subtitle: 'Project' }));
+        } catch (e) {}
+    }
+
+    // 2. Defcon (Turso)
+    if (turso) {
+        try {
+            const res = await turso.execute({ sql: "SELECT * FROM clients WHERE name LIKE ? LIMIT 5", args: [`%${query}%`] });
+            res.rows.forEach(r => results.push({ id: `def-c-${r.id}`, appName: 'Defcon App', type: 'client', title: String(r.name || 'Client'), subtitle: String(r.email || '') }));
+        } catch (e) {}
+    }
+
+    // 3. DRS (Supabase)
+    if (drsSupabase) {
+        try {
+            const [clientRes, jobRes] = await Promise.all([
+                drsSupabase.from('ClientProfile').select('id, firstName, lastName, email').or(`firstName.ilike.%${query}%,lastName.ilike.%${query}%,email.ilike.%${query}%`).limit(5),
+                drsSupabase.from('Job').select('id, title').ilike('title', `%${query}%`).limit(5)
+            ]);
+            clientRes.data?.forEach(c => results.push({ id: `drs-c-${c.id}`, appName: 'DRS Auto Detailing', type: 'client', title: `${c.firstName} ${c.lastName}`, subtitle: c.email }));
+            jobRes.data?.forEach(j => results.push({ id: `drs-j-${j.id}`, appName: 'DRS Auto Detailing', type: 'job', title: j.title || 'Untitled Job', subtitle: 'Detailing Job' }));
+        } catch (e) {}
+    }
+
+    return results;
+}
