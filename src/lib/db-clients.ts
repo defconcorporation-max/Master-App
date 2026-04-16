@@ -359,21 +359,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
     return results;
 }
 
-export async function searchGlobal(query: string): Promise<SearchResult[]> {
-    if (!query || query.length < 2) return [];
-    const results: SearchResult[] = [];
-    if (supabase) {
-        try {
-            const [clientRes, projectRes] = await Promise.all([
-                supabase.from('clients').select('id, full_name, email').or(`full_name.ilike.%${query}%,email.ilike.%${query}%`).limit(5),
-                supabase.from('projects').select('id, title').ilike('title', `%${query}%`).limit(5)
-            ]);
-            clientRes.data?.forEach(c => results.push({ id: `auc-c-${c.id}`, appName: 'Auclaire APP', type: 'client', title: c.full_name, subtitle: c.email }));
-            projectRes.data?.forEach(p => results.push({ id: `auc-p-${p.id}`, appName: 'Auclaire APP', type: 'project', title: p.title, subtitle: 'Project' }));
-        } catch (e) {}
-    }
-    return results;
-}
+
 
 export async function fetchOmniTasks(): Promise<OmniTask[]> {
     const tasks: OmniTask[] = [];
