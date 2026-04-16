@@ -417,7 +417,7 @@ export async function fetchOmniCRM(): Promise<EmpireContact[]> {
             const { data } = await supabase.from('clients').select('id, full_name, email, phone, created_at').limit(50);
             data?.forEach(c => contacts.push({
                 id: `auc-${c.id}`, appName: 'Auclaire APP', name: c.full_name, email: c.email, phone: c.phone || '',
-                type: 'client', lastActive: c.created_at || new Date().toISOString()
+                status: 'active', lifetimeValue: 0, metrics: 'N/A', lastActive: c.created_at || new Date().toISOString()
             }));
         } catch (e) {}
     }
@@ -428,7 +428,7 @@ export async function fetchOmniCRM(): Promise<EmpireContact[]> {
             const res = await turso.execute("SELECT * FROM clients LIMIT 50");
             res.rows.forEach(r => contacts.push({
                 id: `def-${r.id}`, appName: 'Defcon App', name: String(r.name || 'Client'), email: String(r.email || ''),
-                phone: String(r.phone || ''), type: 'client', lastActive: new Date().toISOString()
+                phone: String(r.phone || ''), status: 'active', lifetimeValue: 0, metrics: 'N/A', lastActive: new Date().toISOString()
             }));
         } catch (e) {}
     }
@@ -439,7 +439,7 @@ export async function fetchOmniCRM(): Promise<EmpireContact[]> {
             const { data } = await drsSupabase.from('ClientProfile').select('id, firstName, lastName, user(email, phone), createdAt').limit(50);
             data?.forEach((c: any) => contacts.push({
                 id: `drs-${c.id}`, appName: 'DRS Auto Detailing', name: `${c.firstName} ${c.lastName}`,
-                email: c.user?.email || '', phone: c.user?.phone || '', type: 'client', lastActive: c.createdAt || new Date().toISOString()
+                email: c.user?.email || '', phone: c.user?.phone || '', status: 'active', lifetimeValue: 0, metrics: 'N/A', lastActive: c.createdAt || new Date().toISOString()
             }));
         } catch (e) {}
     }
