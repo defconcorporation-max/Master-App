@@ -38,50 +38,10 @@ const drsSupabaseUrl = (process.env.DRS_SUPABASE_URL || '').trim();
 const drsSupabaseKey = (process.env.DRS_SUPABASE_SERVICE_ROLE_KEY || process.env.DRS_SUPABASE_KEY || '').trim();
 export const drsSupabase = drsSupabaseUrl && drsSupabaseKey ? createSupabaseClient(drsSupabaseUrl, drsSupabaseKey) : null;
 
-export interface ChartDataPoint {
-    date: string; // ISO string 'YYYY-MM-DD'
-    revenue: number;
-    expenses?: number;
-}
+// Re-export all shared types from the client-safe types module
+export type { ChartDataPoint, ActivityType, AppActivity, SearchResult, AppStats, OmniTask, EmpireContact, ExpenseItem } from '@/lib/types';
+import type { ChartDataPoint, ActivityType, AppActivity, SearchResult, AppStats, OmniTask, EmpireContact, ExpenseItem } from '@/lib/types';
 
-export type ActivityType = 'invoice_created' | 'payment_collected' | 'expense_logged' | 'project_created' | 'commission_paid' | 'other';
-
-export interface AppActivity {
-    id: string;
-    appName: string;
-    type: ActivityType;
-    title: string;
-    description: string;
-    amount?: number;
-    date: string; // ISO string for sorting
-}
-
-export interface SearchResult {
-    id: string;
-    appName: string;
-    type: 'client' | 'project' | 'invoice' | 'job' | 'other';
-    title: string;
-    subtitle?: string;
-}
-
-export interface AppStats {
-    id?: 'auclaire' | 'defcon' | 'antigravity' | 'drs';
-    name: string;
-    users: number;
-    financials: {
-        billed: number;
-        collected: number;
-        pending: number;
-        expenses: number;
-        commissionsPaid?: number; // Added to explicitly track commissions 
-        profit: number;
-    };
-    tasks: number; // General activity counter
-    chartData: ChartDataPoint[];
-    activityFeed?: AppActivity[];
-    status: 'online' | 'error' | 'offline';
-    errorMsg?: string;
-}
 
 export async function fetchGlobalStats(force: boolean = false): Promise<{ auclaire: AppStats, defcon: AppStats, antigravity: AppStats, drs: AppStats }> {
     const now = Date.now();
@@ -104,9 +64,43 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
     // 1. Fetch Auclaire (Supabase)
     if (supabase) {
         try {
-            // Count clients for 'users'
-            const { count: userCount, error: userError } = await supabase.from('clients').select('*', { count: 'exact', head: true });
+            // In Auclaire, invoices might be linked to 'projects', 'clients', or 'users'.
+            // Let's fetch all of them and build a Universal ID Resolver.
+            let userCount = 0;
+            const clientMap = new Map<string, any>();
             
+            const resClients = await supabase.from('clients').select('*');
+            const resUsers = await supabase.from('users').select('*');
+            const resProjects = await supabase.from('projects').select('*');
+
+            if (resClients.data) {
+                resClients.data.forEach((c: any) => clientMap.set(c.id, { ...c, _type: 'client' }));
+                userCount = resClients.data.length;
+            }
+            if (resUsers.data) {
+                resUsers.data.forEach((u: any) => clientMap.set(u.id, { ...u, _type: 'user' }));
+                if (userCount === 0) userCount = resUsers.data.length;
+            }
+            if (resProjects.data) {
+                resProjects.data.forEach((p: any) => clientMap.set(p.id, { ...p, _type: 'project' }));
+            }
+            
+            // Helper to dig out a name from any entity ID
+            const resolveName = (id: any): string | null => {
+                if (!id) return null;
+                const entity = clientMap.get(id);
+                if (!entity) return null;
+                if (entity.name || entity.full_name || entity.client_name || entity.first_name) {
+                    return entity.name || entity.full_name || entity.client_name || [entity.first_name, entity.last_name].filter(Boolean).join(' ');
+                }
+                if (entity._type === 'project') {
+                    // Try to resolve the client of this project
+                    return resolveName(entity.client_id || entity.clientId || entity.user_id) || entity.title || entity.name;
+                }
+                return null;
+            };
+            
+<<<<<<< HEAD
             // Extract all invoices with project titles
             const { data: invData, error: invError } = await supabase.from('invoices').select(`
                 amount, amount_paid, created_at, paid_at, status,
@@ -115,6 +109,13 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             
             // Extract all expenses with descriptions
             const { data: expData, error: expError } = await supabase.from('expenses').select('amount, date, status, created_at, category, description');
+=======
+            // Extract all invoices to calculate billed, collected, pending, and time-series
+            const { data: invData, error: invError } = await supabase.from('invoices').select('*');
+            
+            // Extract all expenses
+            const { data: expData, error: expError } = await supabase.from('expenses').select('*');
+>>>>>>> 46f77c42e087aad57fa71b70cc03b67a16fd12c5
 
             let billed = 0;
             let collected = 0;
@@ -176,12 +177,22 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             // Generate Activity Feed
             const activities: AppActivity[] = [];
             if (invData) {
+<<<<<<< HEAD
                 invData.forEach((inv: any, i) => {
                     const project = Array.isArray(inv.projects) ? inv.projects[0] : inv.projects;
                     const projectTitle = project?.title || 'Unknown Project';
                     const client = Array.isArray(project?.clients) ? project.clients[0] : project?.clients;
                     const clientName = client?.full_name || 'Generic Client';
                     
+=======
+                invData.forEach((inv, i) => {
+                    // Invoices might link directly to client/user, or to a project! 
+                    const linkedId = inv.client_id || inv.clientId || inv.user_id || inv.userId || inv.customer_id || inv.project_id || inv.projectId;
+                    
+                    // Attempt resolution via lookup, or use hardcoded name directly on invoice
+                    const resolvedClientName = resolveName(linkedId) || (inv.client_name || inv.clientName || inv.customer_name || 'Client Inconnu');
+
+>>>>>>> 46f77c42e087aad57fa71b70cc03b67a16fd12c5
                     if (inv.created_at) {
                         activities.push({
                             id: `auc-inv-c-${inv.created_at}-${Math.random()}`,
@@ -190,7 +201,8 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                             title: 'Invoice Issued',
                             description: `Invoice for $${inv.amount} generated for ${projectTitle} (${clientName})`,
                             amount: Number(inv.amount),
-                            date: new Date(inv.created_at).toISOString()
+                            date: new Date(inv.created_at).toISOString(),
+                            clientName: resolvedClientName
                         });
                     }
                     if ((inv.status === 'paid' || inv.status === 'completed') && inv.paid_at) {
@@ -201,7 +213,9 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                             title: 'Payment Received',
                             description: `Payment of $${inv.amount_paid} collected for ${projectTitle}`,
                             amount: Number(inv.amount_paid),
-                            date: new Date(inv.paid_at).toISOString()
+                            date: new Date(inv.paid_at).toISOString(),
+                            clientName: resolvedClientName,
+                            metadata: inv.type || inv.description || (inv.amount_paid < inv.amount ? 'Deposit' : 'Full Payment')
                         });
                     }
                 });
@@ -215,20 +229,24 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                             appName: 'Auclaire APP',
                             type: exp.category === 'commission' ? 'commission_paid' : 'expense_logged',
                             title: exp.category === 'commission' ? 'Commission Paid' : 'Expense Logged',
+<<<<<<< HEAD
                             description: `${exp.description || 'Miscellaneous expense'} ($${exp.amount}) - ${exp.category || 'General'}`,
+=======
+                            description: exp.description || `Expense of $${exp.amount} recorded`,
+>>>>>>> 46f77c42e087aad57fa71b70cc03b67a16fd12c5
                             amount: Number(exp.amount),
-                            date: new Date(exp.date || exp.created_at).toISOString()
+                            date: new Date(exp.date || exp.created_at).toISOString(),
+                            metadata: exp.category || 'General Expense'
                         });
                     }
                 });
             }
-            // Sort Descending
-            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20);
+            // Sort Descending (Removed slice to supply full data to calendar)
+            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             // Count total projects for 'tasks'
             const { count: projCount } = await supabase.from('projects').select('*', { count: 'exact', head: true });
 
-            if (userError && userError.code !== '42P01') throw userError;
             if (invError && invError.code !== '42P01') throw invError;
             if (expError && expError.code !== '42P01') throw expError;
 
@@ -263,8 +281,8 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
             const userRes = await turso.execute("SELECT COUNT(*) as count FROM clients");
             const taskRes = await turso.execute("SELECT COUNT(*) as count FROM shoots");
             
-            // Get all payments for financial breakdown and time-series
-            const paymentRes = await turso.execute("SELECT amount, status, date FROM payments");
+            // Get all payments using SELECT * to allow harvesting of client names and metadata
+            const paymentRes = await turso.execute("SELECT * FROM payments");
             
             let billed = 0;
             let collected = 0;
@@ -289,15 +307,17 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                             appName: 'Defcon App',
                             type: 'payment_collected',
                             title: 'Payment Received',
-                            description: `Payment of $${amount} collected`,
+                            description: row.description ? String(row.description) : `Payment of $${amount} collected`,
                             amount,
-                            date: new Date(dateRaw).toISOString()
+                            date: new Date(dateRaw).toISOString(),
+                            clientName: row.client_name || row.contact_name ? String(row.client_name || row.contact_name) : undefined,
+                            metadata: row.type || row.payment_type ? String(row.type || row.payment_type) : undefined
                         });
                     }
                 }
             });
 
-            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20);
+            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             const chartData = Array.from(chartDataMap.entries())
                 .map(([date, revenue]) => ({ date, revenue }))
@@ -414,7 +434,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                 }
             });
 
-            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20);
+            const activityFeed = activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             const chartData = Array.from(chartDataMap.entries())
                 .map(([date, data]) => ({ date, revenue: data.revenue, expenses: data.expenses }))
@@ -455,11 +475,16 @@ path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
             // Fetch users (ClientProfile)
             const { count: userCount } = await drsSupabase.from('ClientProfile').select('*', { count: 'exact', head: true });
             
+<<<<<<< HEAD
             // Fetch jobs with client names
             const { data: jobs } = await drsSupabase.from('Job').select(`
                 id, title, totalPrice, status, updatedAt,
                 client:ClientProfile ( firstName, lastName )
             `);
+=======
+            // Fetch jobs
+            const { data: jobs } = await drsSupabase.from('Job').select('*');
+>>>>>>> 46f77c42e087aad57fa71b70cc03b67a16fd12c5
             
             let billed = 0;
             let collected = 0;
@@ -487,9 +512,15 @@ path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
                                     appName: 'DRS Auto Detailing',
                                     type: 'payment_collected',
                                     title: 'Job Completed',
+<<<<<<< HEAD
                                     description: `Job "${jobTitle}" for ${clientName} - $${price} collected`,
+=======
+                                    description: job.title ? `Job: ${job.title}` : `Detailing job of $${price} completed`,
+>>>>>>> 46f77c42e087aad57fa71b70cc03b67a16fd12c5
                                     amount: price,
-                                    date: dateRaw.toISOString()
+                                    date: dateRaw.toISOString(),
+                                    clientName: job.clientName || job.client_name || job.firstName || undefined,
+                                    metadata: job.serviceType || job.package || 'Detailing Service'
                                 });
                             }
                         }
@@ -517,7 +548,7 @@ path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
                     profit: collected - expenses
                 },
                 chartData,
-                activityFeed: activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20),
+                activityFeed: activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
                 tasks: jobs ? jobs.length : 0
             };
         } catch (e: any) {
@@ -570,11 +601,11 @@ export async function searchGlobal(query: string): Promise<SearchResult[]> {
     if (turso) {
         try {
             const clientRes = await turso.execute({
-                sql: "SELECT id, name, email FROM clients WHERE name LIKE ? OR email LIKE ? LIMIT 5",
-                args: [`%${query}%`, `%${query}%`]
+                sql: "SELECT * FROM clients WHERE name LIKE ? LIMIT 5",
+                args: [`%${query}%`]
             });
             const shootRes = await turso.execute({
-                sql: "SELECT id, title FROM shoots WHERE title LIKE ? LIMIT 5",
+                sql: "SELECT * FROM shoots WHERE title LIKE ? LIMIT 5",
                 args: [`%${query}%`]
             });
 
@@ -582,8 +613,8 @@ export async function searchGlobal(query: string): Promise<SearchResult[]> {
                 id: `def-c-${r.id}`,
                 appName: 'Defcon App',
                 type: 'client',
-                title: String(r.name),
-                subtitle: String(r.email)
+                title: String(r.name || r.first_name || 'Client'),
+                subtitle: String(r.email || r.contact_email || '')
             }));
             shootRes.rows.forEach(r => results.push({
                 id: `def-s-${r.id}`,
@@ -645,17 +676,6 @@ export async function searchGlobal(query: string): Promise<SearchResult[]> {
     return results;
 }
 
-export interface OmniTask {
-    id: string;
-    appName: string;
-    title: string;
-    status: 'backlog' | 'todo' | 'in_progress' | 'done';
-    priority: 'low' | 'medium' | 'high' | 'critical';
-    date: string;
-    stage?: string;        // Auclaire pipeline: designing, 3d_model, production, delivery, etc.
-    jewelryType?: string | null;  // Bague, Collier, Bracelet, etc.
-    budget?: number;       // Sale price
-}
 
 export async function fetchOmniTasks(): Promise<OmniTask[]> {
     const tasks: OmniTask[] = [];
@@ -663,7 +683,8 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
     // 1. Auclaire (Projects — full pipeline)
     if (supabase) {
         try {
-            const { data } = await supabase.from('projects').select('id, title, status, priority, jewelry_type, budget, created_at');
+            // Using * is safer if columns change, but let's stick to what we know exists
+            const { data } = await supabase.from('projects').select('*');
             data?.forEach(p => {
                 const pStatus = p.status || 'designing';
                 let omniStatus: OmniTask['status'] = 'in_progress';
@@ -676,46 +697,70 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                 tasks.push({
                     id: `auc-${p.id}`,
                     appName: 'Auclaire APP',
-                    title: p.title || 'Sans titre',
+                    title: p.title || p.name || 'Sans titre',
                     status: omniStatus,
                     priority: omniPriority,
-                    date: p.created_at,
+                    date: p.created_at || new Date().toISOString(),
                     stage: pStatus,
                     jewelryType: p.jewelry_type || null,
-                    budget: Number(p.budget) || 0,
+                    budget: Number(p.budget || p.amount || 0),
+                    clientName: p.client_name || p.clientName || undefined,
+                    endDate: p.end_date || p.endDate || p.delivery_date || undefined
                 });
             });
-        } catch (e) {}
+        } catch (e) {
+            console.error("Auclaire Tasks Fetch Error:", e);
+        }
     }
 
     // 2. Defcon (Shoots)
     if (turso) {
         try {
-            const res = await turso.execute("SELECT id, title, status, date FROM shoots");
-            res.rows.forEach(r => tasks.push({
-                id: `def-${r.id}`,
-                appName: 'Defcon App',
-                title: String(r.title),
-                status: String(r.status).toLowerCase().includes('done') ? 'done' : 'in_progress',
-                priority: 'high',
-                date: String(r.date)
-            }));
-        } catch (e) {}
+            const res = await turso.execute("SELECT * FROM shoots");
+            res.rows.forEach(r => {
+                let dateRaw = String(r.date || r.shoot_date || r.created_at || r.createdAt || '');
+                const endDateRaw = r.end_date || r.endDate || undefined;
+                
+                // If there's an explicit time column separate from date, merge it
+                const timeStr = String(r.time || r.start_time || r.shoot_time || '');
+                if (timeStr && timeStr !== 'undefined' && !dateRaw.includes('T')) {
+                    dateRaw = `${dateRaw.split(' ')[0]}T${timeStr}`;
+                }
+
+                tasks.push({
+                    id: `def-${r.id || r.shoot_id || Math.random()}`,
+                    appName: 'Defcon App',
+                    title: String(r.title || r.name || 'Untitled Shoot'),
+                    status: String(r.status || r.state || 'in_progress').toLowerCase().includes('done') ? 'done' : 'in_progress',
+                    priority: 'high',
+                    date: dateRaw ? new Date(dateRaw).toISOString() : new Date().toISOString(), // Fallback directly preventing NaN/invalid parsing later
+                    endDate: endDateRaw ? new Date(String(endDateRaw)).toISOString() : undefined,
+                    clientName: r.contact_name ? String(r.contact_name) : undefined,
+                    budget: Number(r.budget || r.price || r.amount || 0),
+                    hasSpecificTime: true // Shoots ALWAYS have a time constraint visually
+                });
+            });
+        } catch (e) {
+            console.error("Defcon Tasks Fetch Error:", e);
+        }
     }
 
     // 3. DRS (Supabase)
     if (drsSupabase) {
         try {
-            const { data: jobs } = await drsSupabase.from('Job').select('id, title, status, createdAt');
+            const { data: jobs } = await drsSupabase.from('Job').select('*');
             jobs?.forEach(j => tasks.push({
                 id: `drs-${j.id}`,
                 appName: 'DRS Auto Detailing',
-                title: j.title || 'Untitled Job',
+                title: j.title || j.name || 'Untitled Job',
                 status: j.status === 'COMPLETED' ? 'done' : 'in_progress',
                 priority: 'medium',
-                date: j.createdAt ? new Date(j.createdAt).toISOString() : new Date().toISOString()
+                date: j.createdAt ? new Date(j.createdAt).toISOString() : new Date().toISOString(),
+                budget: Number(j.totalPrice || j.price || 0),
             }));
-        } catch (e) {}
+        } catch (e) {
+            console.error("DRS Tasks Fetch Error:", e);
+        }
     }
 
     // 4. Antigravity (MongoDB)
@@ -723,7 +768,7 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
         try {
             await mongoClient.connect();
             const db = mongoClient.db('travel-agency');
-            const items = await db.collection('itineraryitems').find({}).limit(50).toArray();
+            const items = await db.collection('itineraryitems').find({}).toArray();
             items.forEach(item => tasks.push({
                 id: `vv-${item._id}`,
                 appName: 'Viva Vegas',
@@ -738,62 +783,196 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
     return tasks.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
-export interface OmniClient {
-    id: string;
-    name: string;
-    email: string;
-    appName: string;
-    status: 'active' | 'inactive' | 'lead';
-    lastActive: string;
-}
 
-export async function fetchGlobalClients(): Promise<OmniClient[]> {
-    const clients: OmniClient[] = [];
+export async function fetchOmniCRM(): Promise<EmpireContact[]> {
+    const clients: EmpireContact[] = [];
 
-    // 1. Auclaire (Users / Clients)
+    // 1. Auclaire (Clients & Users + Invoices for LTV)
     if (supabase) {
         try {
-            const { data } = await supabase.from('users').select('id, name, email, created_at');
-            data?.forEach(u => clients.push({
-                id: `auc-${u.id}`,
-                name: u.name || 'Anonymous',
-                email: u.email || 'no-email',
-                appName: 'Auclaire APP',
-                status: 'active',
-                lastActive: u.created_at
-            }));
-        } catch (e) {}
+            const [usersRes, invRes] = await Promise.all([
+                supabase.from('users').select('id, name, email, created_at'),
+                supabase.from('invoices').select('user_id, amount_paid, status')
+            ]);
+            
+            const ltvMap = new Map<string, number>();
+            invRes.data?.forEach(inv => {
+                if (inv.status === 'paid' && inv.user_id) {
+                    ltvMap.set(inv.user_id, (ltvMap.get(inv.user_id) || 0) + Number(inv.amount_paid));
+                }
+            });
+
+            usersRes.data?.forEach(u => {
+                const ltv = ltvMap.get(u.id) || 0;
+                clients.push({
+                    id: `auc-${u.id}`,
+                    name: u.name || 'Anonyme',
+                    email: u.email || 'Pas d\'email',
+                    appName: 'Auclaire',
+                    status: ltv > 5000 ? 'vip' : (ltv > 0 ? 'active' : 'lead'),
+                    lastActive: u.created_at || new Date().toISOString(),
+                    lifetimeValue: ltv,
+                    metrics: ltv > 0 ? 'Client Confirmé' : 'Prospect'
+                });
+            });
+        } catch (e) {
+            console.error("Auclaire CRM error", e);
+        }
     }
 
-    // 2. Defcon (Shoots - extracting unique contacts)
+    // 2. Defcon (Clients table — use SELECT * for schema safety)
     if (turso) {
         try {
-            const res = await turso.execute("SELECT DISTINCT contact_name, contact_email, date FROM shoots");
-            res.rows.forEach(r => clients.push({
-                id: `def-${r.contact_email}`,
-                name: String(r.contact_name),
-                email: String(r.contact_email),
-                appName: 'Defcon App',
-                status: 'active',
-                lastActive: String(r.date)
-            }));
-        } catch (e) {}
+            const res = await turso.execute("SELECT * FROM clients");
+            let payments: any = { rows: [] };
+            try {
+                payments = await turso.execute("SELECT client_id, amount, status FROM payments");
+            } catch (e) {}
+            
+            const ltvMap = new Map<string, number>();
+            payments.rows.forEach((p: any) => {
+                const st = String(p.status || '').toLowerCase();
+                if (st === 'paid' || st === 'completed') {
+                    const cid = String(p.client_id);
+                    ltvMap.set(cid, (ltvMap.get(cid) || 0) + Number(p.amount || 0));
+                }
+            });
+
+            res.rows.forEach(r => {
+                const cid = String(r.id);
+                const ltv = ltvMap.get(cid) || 0;
+                const name = String(r.name || r.first_name || r.contact_name || 'Anonyme');
+                const email = String(r.email || r.contact_email || '');
+                clients.push({
+                    id: `def-${cid}`,
+                    name: name,
+                    email: email || 'Pas d\'email',
+                    phone: r.phone ? String(r.phone) : undefined,
+                    appName: 'Defcon',
+                    status: ltv > 10000 ? 'vip' : (ltv > 0 ? 'active' : 'lead'),
+                    lastActive: String(r.created_at || r.date || new Date().toISOString()),
+                    lifetimeValue: ltv,
+                    metrics: ltv > 0 ? 'Client Confirmé' : 'Prospect'
+                });
+            });
+        } catch (e) {
+            console.error("Defcon CRM error", e);
+        }
     }
 
-    // 3. DRS (Supabase)
+    // 3. DRS (ClientProfile + Jobs)
     if (drsSupabase) {
         try {
-            const { data } = await drsSupabase.from('ClientProfile').select('id, firstName, lastName, email, createdAt');
-            data?.forEach(c => clients.push({
-                id: `drs-${c.id}`,
-                name: `${c.firstName} ${c.lastName}`,
-                email: c.email || 'no-email',
-                appName: 'DRS Auto Detailing',
-                status: 'active',
-                lastActive: c.createdAt ? new Date(c.createdAt).toISOString() : new Date().toISOString()
-            }));
+            const [profiles, jobs] = await Promise.all([
+                drsSupabase.from('ClientProfile').select('*'),
+                drsSupabase.from('Job').select('clientId, totalPrice, status')
+            ]);
+            
+            const ltvMap = new Map<string, number>();
+            jobs.data?.forEach(j => {
+                if (j.status === 'COMPLETED' && j.clientId) {
+                    ltvMap.set(j.clientId, (ltvMap.get(j.clientId) || 0) + Number(j.totalPrice || 0));
+                }
+            });
+
+            profiles.data?.forEach(c => {
+                const ltv = ltvMap.get(c.id) || 0;
+                clients.push({
+                    id: `drs-${c.id}`,
+                    name: `${c.firstName} ${c.lastName}`,
+                    email: c.email || 'Pas d\'email',
+                    phone: c.phone || undefined,
+                    appName: 'DRS',
+                    status: ltv > 2000 ? 'vip' : (ltv > 0 ? 'active' : 'lead'),
+                    lastActive: c.updatedAt || c.createdAt || new Date().toISOString(),
+                    lifetimeValue: ltv,
+                    metrics: ltv > 0 ? 'Client Confirmé' : 'Prospect'
+                });
+            });
         } catch (e) {}
     }
 
-    return clients.sort((a, b) => new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime());
+    // 4. Viva Vegas (MongoDB clients)
+    if (mongoClient) {
+        try {
+            await mongoClient.connect();
+            const db = mongoClient.db('travel-agency');
+            const vvClients = await db.collection('clients').find({}).toArray();
+            
+            vvClients.forEach(c => {
+                clients.push({
+                    id: `vv-${c._id}`,
+                    name: c.name || [c.firstName, c.lastName].join(' ').trim() || 'Anonyme',
+                    email: c.email || 'Pas d\'email',
+                    phone: c.phone,
+                    appName: 'Viva Vegas',
+                    status: 'lead', // Hardcoded as lead unless we query quotes for LTV
+                    lastActive: c.updatedAt || c.createdAt || new Date().toISOString(),
+                    lifetimeValue: 0,
+                    metrics: 'Prospect'
+                });
+            });
+        } catch (e) {}
+    }
+
+    return clients.sort((a, b) => b.lifetimeValue - a.lifetimeValue); // VIP first
+}
+
+// --- Expense Breakdown Intelligence ---
+
+export async function fetchExpenseBreakdown(): Promise<ExpenseItem[]> {
+    const items: ExpenseItem[] = [];
+
+    // 1. Defcon expenses
+    if (turso) {
+        try {
+            const res = await turso.execute("SELECT * FROM expenses ORDER BY date DESC LIMIT 100");
+            res.rows.forEach(r => {
+                items.push({
+                    id: `def-exp-${r.id}`,
+                    appName: 'Defcon',
+                    category: String(r.category || 'Général'),
+                    description: String(r.description || ''),
+                    amount: Number(r.amount || 0),
+                    date: String(r.date || new Date().toISOString())
+                });
+            });
+        } catch (e) {}
+    }
+
+    // 2. Auclaire expenses (if table exists)
+    if (supabase) {
+        try {
+            const { data } = await supabase.from('expenses').select('id, category, description, amount, created_at').order('created_at', { ascending: false }).limit(100);
+            data?.forEach(e => {
+                items.push({
+                    id: `auc-exp-${e.id}`,
+                    appName: 'Auclaire',
+                    category: e.category || 'Général',
+                    description: e.description || '',
+                    amount: Number(e.amount || 0),
+                    date: e.created_at || new Date().toISOString()
+                });
+            });
+        } catch (e) {}
+    }
+
+    // 3. DRS expenses
+    if (drsSupabase) {
+        try {
+            const { data } = await drsSupabase.from('Expense').select('id, category, description, amount, createdAt').order('createdAt', { ascending: false }).limit(100);
+            data?.forEach(e => {
+                items.push({
+                    id: `drs-exp-${e.id}`,
+                    appName: 'DRS',
+                    category: e.category || 'Général',
+                    description: e.description || '',
+                    amount: Number(e.amount || 0),
+                    date: e.createdAt || new Date().toISOString()
+                });
+            });
+        } catch (e) {}
+    }
+
+    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }

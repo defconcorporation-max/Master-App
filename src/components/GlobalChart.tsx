@@ -94,36 +94,38 @@ export function GlobalChart({ data }: GlobalChartProps) {
     }
 
     return (
-        <div className="bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 rounded-2xl p-6 shadow-xl overflow-hidden group hover:border-zinc-700 transition-colors">
+        <div className="glass-panel p-6 shadow-xl overflow-hidden relative group">
             
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[80px] pointer-events-none transition-all group-hover:bg-indigo-500/10" />
+
             {/* Header Controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
-                <div className="flex items-center gap-2">
-                    <div className="p-2 bg-indigo-500/10 rounded-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 relative z-10">
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 border border-indigo-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] rounded-xl bg-indigo-500/10">
                         <TrendingUp className="w-5 h-5 text-indigo-400" />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-white tracking-tight">Financial Timeline</h3>
-                        <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Historical Revenue & Profit</p>
+                        <h3 className="text-lg font-black text-slate-100 tracking-tight uppercase">Financial Timeline</h3>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Historical Revenue & Profit</p>
                     </div>
                 </div>
 
-                <div className="flex items-center bg-zinc-950 rounded-lg p-1 border border-zinc-800">
+                <div className="flex items-center glass-pill rounded-lg p-1">
                     <button 
                         onClick={() => setTimeframe('daily')}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${timeframe === 'daily' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`px-3 py-1.5 text-xs font-black tracking-widest uppercase rounded-md transition-all ${timeframe === 'daily' ? 'bg-white/10 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}
                     >
                         Daily
                     </button>
                     <button 
                         onClick={() => setTimeframe('weekly')}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${timeframe === 'weekly' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`px-3 py-1.5 text-xs font-black tracking-widest uppercase rounded-md transition-all ${timeframe === 'weekly' ? 'bg-white/10 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}
                     >
                         Weekly
                     </button>
                     <button 
                         onClick={() => setTimeframe('monthly')}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${timeframe === 'monthly' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        className={`px-3 py-1.5 text-xs font-black tracking-widest uppercase rounded-md transition-all ${timeframe === 'monthly' ? 'bg-white/10 text-white shadow-md' : 'text-zinc-500 hover:text-zinc-300'}`}
                     >
                         Monthly
                     </button>
@@ -131,7 +133,7 @@ export function GlobalChart({ data }: GlobalChartProps) {
             </div>
 
             {/* Chart Area */}
-            <div className="h-[350px] w-full">
+            <div className="h-[350px] w-full relative z-10">
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={aggregatedData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                         <defs>
