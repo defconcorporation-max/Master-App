@@ -196,19 +196,29 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
     // 2. Fetch Defcon (Turso)
     if (turso) {
         try {
-            const userRes = await turso.execute("SELECT COUNT(*) as count FROM clients");
-            const taskRes = await turso.execute("SELECT COUNT(*) as count FROM shoots");
-            const paymentRes = await turso.execute("SELECT amount, status, date FROM payments");
+            const [userRes, taskRes, paymentRes, serviceRes, costRes, expRes] = await Promise.all([
+                turso.execute("SELECT COUNT(*) as count FROM clients"),
+                turso.execute("SELECT COUNT(*) as count FROM shoots"),
+                turso.execute("SELECT amount, status, date FROM payments"),
+                turso.execute("SELECT rate, quantity, project_id FROM project_services"),
+                turso.execute("SELECT amount FROM project_costs"),
+                turso.execute("SELECT amount FROM expenses")
+            ]);
             
-            let billed = 0, collected = 0;
+            let billed = 0, collected = 0, expenses = 0;
             const chartDataMap = new Map<string, number>();
             const activities: AppActivity[] = [];
 
+            // Billed comes from services
+            serviceRes.rows.forEach(row => {
+                billed += (Number(row.rate) || 0) * (Number(row.quantity) || 1);
+            });
+
+            // Collected comes from payments
             paymentRes.rows.forEach(row => {
                 const amount = Number(row.amount) || 0;
                 const status = String(row.status || '').toLowerCase();
                 const dateRaw = String(row.date); 
-                billed += amount;
                 if (status === 'paid' || status === 'completed') {
                     collected += amount;
                     if (dateRaw && dateRaw !== 'null') {
@@ -222,15 +232,20 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                 }
             });
 
+            // Expenses comes from project_costs and expenses table
+            costRes.rows.forEach(row => { expenses += (Number(row.amount) || 0); });
+            expRes.rows.forEach(row => { expenses += (Number(row.amount) || 0); });
+
             results.defcon = {
-                name: 'Defcon App', status: 'online', users: Number(userRes.rows[0]?.count || 0),
-                financials: { billed, collected, pending: billed - collected, expenses: 0, profit: collected },
+                id: 'defcon', name: 'Defcon App', status: 'online', users: Number(userRes.rows[0]?.count || 0),
+                financials: { billed, collected, pending: billed - collected, expenses, profit: collected - expenses },
                 chartData: Array.from(chartDataMap.entries()).map(([date, revenue]) => ({ date, revenue })).sort((a, b) => a.date.localeCompare(b.date)),
                 activityFeed: activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 20),
                 tasks: Number(taskRes.rows[0]?.count || 0)
             };
         } catch (e: any) {
             results.defcon.status = 'error';
+            results.defcon.errorMsg = String(e.message || e);
         }
     }
 
