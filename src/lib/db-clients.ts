@@ -202,7 +202,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                 turso.execute("SELECT amount, status, date FROM payments"),
                 turso.execute("SELECT rate, quantity, project_id FROM project_services"),
                 turso.execute("SELECT amount FROM project_costs"),
-                turso.execute("SELECT amount FROM expenses")
+                turso.execute("SELECT total_amount as amount FROM expenses")
             ]);
             
             let billed = 0, collected = 0, expenses = 0;
