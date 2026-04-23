@@ -24,10 +24,15 @@ export { mongoClient };
 
 // --- DRS Auto Detailing (PostgreSQL Direct via pg) ---
 const drsDbUrl = (process.env.DRS_DATABASE_URL || '').trim();
+// Clean the URL to avoid conflicts between URL params and Pool config
+const cleanDrsUrl = drsDbUrl.split('?')[0]; 
+
 export const drsPool = drsDbUrl ? new Pool({ 
-    connectionString: drsDbUrl, 
+    connectionString: cleanDrsUrl, 
     max: 10, 
-    ssl: { rejectUnauthorized: false }
+    ssl: {
+        rejectUnauthorized: false
+    }
 }) : null;
 
 if (drsPool) {
