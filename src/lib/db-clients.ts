@@ -24,22 +24,21 @@ export { mongoClient };
 
 // --- DRS Auto Detailing (PostgreSQL Direct via pg) ---
 const drsDbUrl = (process.env.DRS_DATABASE_URL || '').trim();
-console.log('DRS INIT:', drsDbUrl ? 'URL Present (starting with ' + drsDbUrl.substring(0, 10) + '...)' : 'URL MISSING');
 export const drsPool = drsDbUrl ? new Pool({ 
     connectionString: drsDbUrl, 
     max: 10, 
     ssl: { rejectUnauthorized: false }
 }) : null;
 
-// Shared types
+if (drsPool) {
+    drsPool.on('error', (err) => console.error('DRS: Pool error', err));
+}
+
+// Re-export all shared types from the client-safe types module
 export type { ChartDataPoint, ActivityType, AppActivity, SearchResult, AppStats, OmniTask, EmpireContact, ExpenseItem } from '@/lib/types';
 import type { ChartDataPoint, ActivityType, AppActivity, SearchResult, AppStats, OmniTask, EmpireContact, ExpenseItem } from '@/lib/types';
 
 export async function fetchGlobalStats(force: boolean = false): Promise<{ auclaire: AppStats, defcon: AppStats, antigravity: AppStats, drs: AppStats }> {
-    return await fetchGlobalStatsUncached();
-}
-
-async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon: AppStats, antigravity: AppStats, drs: AppStats }> {
     const emptyFinancials = { billed: 0, collected: 0, pending: 0, expenses: 0, commissionsPaid: 0, profit: 0 };
     const results = {
         auclaire: { id: 'auclaire', name: 'Auclaire APP', users: 0, financials: { ...emptyFinancials }, tasks: 0, chartData: [], activityFeed: [], status: 'offline' } as AppStats,
@@ -59,7 +58,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                 c += (i.status === 'paid' || i.status === 'completed') ? (Number(i.amount) || 0) : (Number(i.amount_paid) || 0);
             });
             results.auclaire = { ...results.auclaire, status: 'online', users: u || 0, financials: { ...emptyFinancials, billed: b, collected: c, pending: b - c } };
-        } catch (e: any) {}
+        } catch (e) {}
     }
 
     // 2. Defcon
@@ -73,7 +72,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                 if (['paid', 'done'].includes(String(i.status).toLowerCase())) c += Number(i.amount) || 0;
             });
             results.defcon = { ...results.defcon, status: 'online', users: Number(u.rows[0]?.c || 0), financials: { ...emptyFinancials, billed: b, collected: c, pending: b - c } };
-        } catch (e: any) {}
+        } catch (e) {}
     }
 
     // 3. DRS (PostgreSQL)
@@ -88,7 +87,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                 if (['COMPLETED', 'PAID'].includes(job.status)) c += p;
             });
             results.drs = { ...results.drs, status: 'online', users: Number(u.rows[0].count), financials: { ...emptyFinancials, billed: b, collected: c, pending: b - c } };
-        } catch (e: any) { console.error('DRS Stats Error:', e.message); results.drs.status = 'error'; }
+        } catch (e: any) { results.drs.status = 'error'; }
     }
 
     return results;
@@ -97,7 +96,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
 export async function fetchOmniTasks(): Promise<OmniTask[]> {
     const tasks: OmniTask[] = [];
 
-    // 1. Auclaire (Supabase Projects)
+    // 1. Auclaire
     if (supabase) {
         try {
             const { data } = await supabase.from('projects').select('id, title, status, deadline, clients(full_name)').limit(50);
@@ -105,13 +104,13 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                 tasks.push({
                     id: `auc-${p.id}`, appName: 'Auclaire APP', title: p.title || 'Project',
                     status: p.status === 'completed' ? 'done' : 'in_progress', priority: 'medium',
-                    date: p.deadline || new Date().toISOString(), clientName: ((p.clients as any)?.[0]?.full_name || (p.clients as any)?.full_name) || 'Client'
+                    date: p.deadline || new Date().toISOString(), clientName: (p.clients as any)?.[0]?.full_name || (p.clients as any)?.full_name || 'Client'
                 });
             });
         } catch (e: any) {}
     }
 
-    // 2. Defcon (Turso Shoots with duration)
+    // 2. Defcon
     if (turso) {
         try {
             const res = await turso.execute('SELECT s.*, c.name, c.company_name FROM shoots s LEFT JOIN clients c ON s.client_id = c.id ORDER BY s.shoot_date DESC');
@@ -128,7 +127,7 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
         } catch (e: any) {}
     }
 
-    // 3. DRS (PostgreSQL Jobs)
+    // 3. DRS
     if (drsPool) {
         try {
             const { rows } = await drsPool.query(`
@@ -148,7 +147,7 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                     date: date.toISOString(), endDate: end.toISOString(), hasSpecificTime: true, clientName: j.user_name || 'Client DRS'
                 });
             });
-        } catch (e: any) { console.error('DRS Tasks Error:', e.message); }
+        } catch (e: any) {}
     }
 
     return tasks;
