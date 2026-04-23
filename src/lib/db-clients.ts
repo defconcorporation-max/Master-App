@@ -29,9 +29,9 @@ const cleanDrsUrl = drsDbUrl.split('?')[0];
 
 export const drsPool = drsDbUrl ? new Pool({ 
     connectionString: cleanDrsUrl, 
-    max: 2, 
-    idleTimeoutMillis: 30000, 
-    connectionTimeoutMillis: 10000,
+    max: 3, 
+    idleTimeoutMillis: 1000, // Release connection immediately
+    connectionTimeoutMillis: 5000,
     ssl: {
         rejectUnauthorized: false
     }
