@@ -104,7 +104,7 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                 tasks.push({
                     id: `auc-${p.id}`, appName: 'Auclaire APP', title: p.title || 'Project',
                     status: p.status === 'completed' ? 'done' : 'in_progress', priority: 'medium',
-                    date: p.deadline || new Date().toISOString(), clientName: p.clients?.full_name || 'Client'
+                    date: p.deadline || new Date().toISOString(), clientName: ((p.clients as any)?.[0]?.full_name || (p.clients as any)?.full_name) || 'Client'
                 });
             });
         } catch (e: any) {}
