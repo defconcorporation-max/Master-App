@@ -18,7 +18,7 @@ async function testConn() {
 
     const pool = new Pool({ 
         connectionString: drsUrl,
-        ssl: { rejectUnauthorized: false } // Force SSL
+        ssl: { rejectUnauthorized: false } 
     });
 
     try {
