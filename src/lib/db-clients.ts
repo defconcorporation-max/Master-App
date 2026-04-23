@@ -32,7 +32,13 @@ export { mongoClient };
 
 // --- DRS Auto Detailing (PostgreSQL Direct via pg) ---
 const drsDbUrl = (process.env.DRS_DATABASE_URL || '').trim();
-export const drsPool = drsDbUrl ? new Pool({ connectionString: drsDbUrl, max: 5, idleTimeoutMillis: 30000, connectionTimeoutMillis: 10000 }) : null;
+export const drsPool = drsDbUrl ? new Pool({ 
+    connectionString: drsDbUrl, 
+    max: 5, 
+    idleTimeoutMillis: 30000, 
+    connectionTimeoutMillis: 10000,
+    ssl: { rejectUnauthorized: false } // Required for Supabase/PostgreSQL connections
+}) : null;
 
 // Re-export all shared types from the client-safe types module
 export type { ChartDataPoint, ActivityType, AppActivity, SearchResult, AppStats, OmniTask, EmpireContact, ExpenseItem } from '@/lib/types';
@@ -40,10 +46,8 @@ import type { ChartDataPoint, ActivityType, AppActivity, SearchResult, AppStats,
 
 
 export async function fetchGlobalStats(force: boolean = false): Promise<{ auclaire: AppStats, defcon: AppStats, antigravity: AppStats, drs: AppStats }> {
-    const now = Date.now();
-    if (!force && globalStatsCache && globalStatsCache.expires > now) return globalStatsCache.data;
+    // Cache DISABLED for true Real-Time
     const data = await fetchGlobalStatsUncached();
-    globalStatsCache = { data, expires: now + GLOBAL_STATS_CACHE_TTL_MS };
     return data;
 }
 

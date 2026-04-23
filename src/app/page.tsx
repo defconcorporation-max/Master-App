@@ -2,6 +2,9 @@ import { scanBusinesses } from '@/lib/scanner';
 import { fetchGlobalStats, fetchOmniTasks, ChartDataPoint, AppActivity } from '@/lib/db-clients';
 import { DashboardContainer } from '@/components/DashboardContainer';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function Home() {
   const businesses = await scanBusinesses();
   const stats = await fetchGlobalStats();
