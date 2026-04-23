@@ -24,6 +24,7 @@ export { mongoClient };
 
 // --- DRS Auto Detailing (PostgreSQL Direct via pg) ---
 const drsDbUrl = (process.env.DRS_DATABASE_URL || '').trim();
+console.log('DRS INIT:', drsDbUrl ? 'URL Present (starting with ' + drsDbUrl.substring(0, 10) + '...)' : 'URL MISSING');
 export const drsPool = drsDbUrl ? new Pool({ 
     connectionString: drsDbUrl, 
     max: 10, 
