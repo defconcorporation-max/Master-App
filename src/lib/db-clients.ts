@@ -6,9 +6,7 @@ import { Pool } from 'pg';
 
 const MASTER_ROOT_DIR = process.env.MASTER_ROOT_DIR || 'f:/Entreprises';
 
-const GLOBAL_STATS_CACHE_TTL_MS = (typeof process !== 'undefined' && process.env.GLOBAL_STATS_CACHE_TTL_SEC)
-  ? Math.max(10, parseInt(process.env.GLOBAL_STATS_CACHE_TTL_SEC, 10)) * 1000
-  : 60_000;
+const GLOBAL_STATS_CACHE_TTL_MS = 2000; // 2 seconds for near-real-time
 let globalStatsCache: { data: Awaited<ReturnType<typeof fetchGlobalStatsUncached>>; expires: number } | null = null;
 
 // --- Auclaire (Supabase) ---
@@ -447,10 +445,11 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
         try {
             const { rows: jobs } = await drsPool.query(`
                 SELECT j.id, j.status, j."scheduledDate", j."durationMin", j."totalPrice", j."customServiceName", j."customServicePrice", j.notes,
-                       cp."firstName", cp."lastName",
+                       cp.id as client_id, u.name as user_name, u.email as user_email,
                        v.make as vehicle_make, v.model as vehicle_model
                 FROM "Job" j
                 LEFT JOIN "ClientProfile" cp ON j."clientId" = cp.id
+                LEFT JOIN "User" u ON cp."userId" = u.id
                 LEFT JOIN "Vehicle" v ON j."vehicleId" = v.id
                 ORDER BY j."scheduledDate" DESC
             `);
@@ -460,7 +459,7 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
 
                 const durationMs = (Number(j.durationMin) || 60) * 60 * 1000;
                 const endDate = new Date(scheduledDate.getTime() + durationMs);
-                const clientName = j.firstName ? `${j.firstName} ${j.lastName}` : 'Client';
+                const clientName = j.user_name || 'Client';
                 const vehicleLabel = j.vehicle_make ? `${j.vehicle_make} ${j.vehicle_model}` : '';
                 const title = j.customServiceName || (vehicleLabel ? `Detailing — ${vehicleLabel}` : 'Detailing Job');
 
@@ -476,7 +475,9 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                     budget: (Number(j.totalPrice) || 0) + (Number(j.customServicePrice) || 0)
                 });
             });
-        } catch (e) {}
+        } catch (e) {
+            console.error('DRS Fetch Error:', e);
+        }
     }
     if (mongoClient) {
         try {
