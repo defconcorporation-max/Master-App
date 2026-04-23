@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import path from 'path';
-import { supabase, turso, mongoClient, drsSupabase } from '@/lib/db-clients';
+import { supabase, turso, mongoClient, drsPool } from '@/lib/db-clients';
 
 const MASTER_ROOT_DIR = process.env.MASTER_ROOT_DIR || 'f:/Entreprises';
-const getDrsDbPath = () => process.env.DRS_DB_PATH || path.join(MASTER_ROOT_DIR, 'DRS', 'detailing software', 'prisma', 'dev.db');
 
 type Status = 'ok' | 'error' | 'off';
 
@@ -58,12 +57,12 @@ export async function GET() {
     results.antigravity = { name: 'Viva Vegas', status: 'off' };
   }
 
-  // DRS (Supabase)
-  if (drsSupabase) {
+  // DRS (PostgreSQL Direct)
+  if (drsPool) {
     const t0 = Date.now();
     try {
-      const { error } = await drsSupabase.from('ClientProfile').select('id').limit(1).maybeSingle();
-      results.drs = { name: 'DRS', status: error && error.code !== '42P01' ? 'error' : 'ok', latencyMs: Date.now() - t0, error: error?.message };
+      await drsPool.query('SELECT 1');
+      results.drs = { name: 'DRS', status: 'ok', latencyMs: Date.now() - t0 };
     } catch (e: unknown) {
       results.drs = { name: 'DRS', status: 'error', latencyMs: Date.now() - t0, error: String(e) };
     }
