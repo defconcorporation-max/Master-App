@@ -58,7 +58,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                 c += (i.status === 'paid' || i.status === 'completed') ? (Number(i.amount) || 0) : (Number(i.amount_paid) || 0);
             });
             results.auclaire = { ...results.auclaire, status: 'online', users: u || 0, financials: { ...emptyFinancials, billed: b, collected: c, pending: b - c } };
-        } catch (e) {}
+        } catch (e: any) {}
     }
 
     // 2. Defcon
@@ -72,7 +72,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                 if (['paid', 'done'].includes(String(i.status).toLowerCase())) c += Number(i.amount) || 0;
             });
             results.defcon = { ...results.defcon, status: 'online', users: Number(u.rows[0]?.c || 0), financials: { ...emptyFinancials, billed: b, collected: c, pending: b - c } };
-        } catch (e) {}
+        } catch (e: any) {}
     }
 
     // 3. DRS (PostgreSQL)
@@ -87,7 +87,7 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
                 if (['COMPLETED', 'PAID'].includes(job.status)) c += p;
             });
             results.drs = { ...results.drs, status: 'online', users: Number(u.rows[0].count), financials: { ...emptyFinancials, billed: b, collected: c, pending: b - c } };
-        } catch (e) { console.error('DRS Stats Error:', e.message); results.drs.status = 'error'; }
+        } catch (e: any) { console.error('DRS Stats Error:', e.message); results.drs.status = 'error'; }
     }
 
     return results;
@@ -107,7 +107,7 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                     date: p.deadline || new Date().toISOString(), clientName: p.clients?.full_name || 'Client'
                 });
             });
-        } catch (e) {}
+        } catch (e: any) {}
     }
 
     // 2. Defcon (Turso Shoots with duration)
@@ -124,7 +124,7 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                     hasSpecificTime: !!r.start_time, clientName: r.company_name || r.name || 'Client'
                 });
             });
-        } catch (e) {}
+        } catch (e: any) {}
     }
 
     // 3. DRS (PostgreSQL Jobs)
@@ -147,7 +147,7 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                     date: date.toISOString(), endDate: end.toISOString(), hasSpecificTime: true, clientName: j.user_name || 'Client DRS'
                 });
             });
-        } catch (e) { console.error('DRS Tasks Error:', e.message); }
+        } catch (e: any) { console.error('DRS Tasks Error:', e.message); }
     }
 
     return tasks;
