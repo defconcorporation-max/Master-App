@@ -93,8 +93,16 @@ export async function fetchGlobalStats(force: boolean = false): Promise<{ auclai
                 b += p;
                 if (['COMPLETED', 'PAID'].includes(job.status)) c += p;
             });
-            results.drs = { ...results.drs, status: 'online', users: Number(u.rows[0].count), financials: { ...emptyFinancials, billed: b, collected: c, pending: b - c } };
-        } catch (e: any) { results.drs.status = 'error'; }
+            results.drs = { 
+                ...results.drs, 
+                status: 'online', 
+                users: Number(u.rows[0].count), 
+                financials: { ...emptyFinancials, billed: b, collected: c, pending: b - c, profit: c } 
+            };
+        } catch (e: any) { 
+            console.error('DRS Stats Fetch Error:', e.message);
+            results.drs.status = 'error'; 
+        }
     }
 
     return results;
