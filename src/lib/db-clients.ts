@@ -122,9 +122,15 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
         try {
             const res = await turso.execute('SELECT s.*, c.name, c.company_name FROM shoots s LEFT JOIN clients c ON s.client_id = c.id ORDER BY s.shoot_date DESC');
             res.rows.forEach((r: any) => {
-                const start = new Date(r.shoot_date + (r.start_time ? 'T' + r.start_time : ''));
+                // Force Eastern Time (-04:00) so 14h remains 14h on the dashboard
+                const timeStr = r.start_time ? 'T' + r.start_time + '-04:00' : 'T00:00:00-04:00';
+                const start = new Date(r.shoot_date + timeStr);
+                
                 let end = undefined;
-                if (r.end_time) end = new Date(r.shoot_date + 'T' + r.end_time).toISOString();
+                if (r.end_time) {
+                    end = new Date(r.shoot_date + 'T' + r.end_time + '-04:00').toISOString();
+                }
+
                 tasks.push({
                     id: `def-${r.id}`, appName: 'Defcon App', title: String(r.title),
                     status: 'in_progress', priority: 'high', date: start.toISOString(), endDate: end,
@@ -145,7 +151,7 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
                 ORDER BY j."scheduledDate" DESC LIMIT 50
             `);
             rows.forEach((j: any) => {
-                const date = new Date(j.scheduledDate);
+                const date = new Date(j.scheduledDate); // Postgres dates are already UTC
                 if (isNaN(date.getTime())) return;
                 const end = new Date(date.getTime() + (Number(j.durationMin) || 120) * 60000);
                 tasks.push({
