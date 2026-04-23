@@ -2,6 +2,7 @@ import path from 'path';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient as createTursoClient } from '@libsql/client';
 import { MongoClient } from 'mongodb';
+import { Pool } from 'pg';
 
 const MASTER_ROOT_DIR = process.env.MASTER_ROOT_DIR || 'f:/Entreprises';
 
@@ -31,10 +32,9 @@ if (mongoUri) {
 }
 export { mongoClient };
 
-// --- DRS Auto Detailing (Supabase) ---
-const drsSupabaseUrl = (process.env.DRS_SUPABASE_URL || '').trim();
-const drsSupabaseKey = (process.env.DRS_SUPABASE_SERVICE_ROLE_KEY || process.env.DRS_SUPABASE_KEY || '').trim();
-export const drsSupabase = drsSupabaseUrl && drsSupabaseKey ? createSupabaseClient(drsSupabaseUrl, drsSupabaseKey) : null;
+// --- DRS Auto Detailing (PostgreSQL Direct via pg) ---
+const drsDbUrl = (process.env.DRS_DATABASE_URL || '').trim();
+export const drsPool = drsDbUrl ? new Pool({ connectionString: drsDbUrl, max: 5, idleTimeoutMillis: 30000, connectionTimeoutMillis: 10000 }) : null;
 
 // Re-export all shared types from the client-safe types module
 export type { ChartDataPoint, ActivityType, AppActivity, SearchResult, AppStats, OmniTask, EmpireContact, ExpenseItem } from '@/lib/types';
@@ -321,54 +321,61 @@ async function fetchGlobalStatsUncached(): Promise<{ auclaire: AppStats, defcon:
         } catch (e: any) {}
     }
 
-    // 4. Fetch DRS (Supabase)
-    if (drsSupabase) {
+    // 4. Fetch DRS (PostgreSQL Direct)
+    if (drsPool) {
         try {
-            const { count: userCount } = await drsSupabase.from('ClientProfile').select('*', { count: 'exact', head: true });
-            const { data: jobs } = await drsSupabase.from('Job').select(`
-                id, title, totalPrice, status, updatedAt,
-                client:ClientProfile ( firstName, lastName )
-            `);
+            const [userRes, jobRes, expRes] = await Promise.all([
+                drsPool.query('SELECT COUNT(*) as count FROM "ClientProfile"'),
+                drsPool.query(`
+                    SELECT j.id, j."totalPrice", j.status, j."updatedAt", j."customServiceName", j."customServicePrice",
+                           cp."firstName", cp."lastName"
+                    FROM "Job" j
+                    LEFT JOIN "ClientProfile" cp ON j."clientId" = cp.id
+                `),
+                drsPool.query('SELECT amount FROM "Expense"')
+            ]);
+
             let billed = 0, collected = 0;
             const chartDataMap = new Map<string, number>();
             const activities: AppActivity[] = [];
+            const jobs = jobRes.rows;
 
-            if (jobs) {
-                jobs.forEach(job => {
-                    const price = Number(job.totalPrice) || 0;
-                    billed += price;
-                    const statusLower = (job.status || '').toLowerCase();
-                    const client = Array.isArray(job.client) ? job.client[0] : job.client;
-                    const clientName = client ? `${client.firstName} ${client.lastName}` : 'Direct Client';
-                    const jobTitle = job.title || 'Detailing Job';
+            jobs.forEach((job: any) => {
+                const price = (Number(job.totalPrice) || 0) + (Number(job.customServicePrice) || 0);
+                billed += price;
+                const statusLower = (job.status || '').toLowerCase();
+                const clientName = job.firstName ? `${job.firstName} ${job.lastName}` : 'Direct Client';
+                const jobTitle = job.customServiceName || 'Detailing Job';
 
-                    if (statusLower === 'completed' || statusLower === 'paid') {
-                        collected += price;
-                        if (job.updatedAt) {
-                            const dateRaw = new Date(job.updatedAt);
-                            if (!isNaN(dateRaw.getTime())) {
-                                const dateStr = dateRaw.toISOString().split('T')[0];
-                                chartDataMap.set(dateStr, (chartDataMap.get(dateStr) || 0) + price);
-                                activities.push({
-                                    id: `drs-job-${dateRaw.getTime()}-${Math.random()}`, appName: 'DRS Auto Detailing', type: 'payment_collected',
-                                    title: 'Job Completed', description: `Job "${jobTitle}" for ${clientName} - $${price} collected`, amount: price, date: dateRaw.toISOString()
-                                });
-                            }
+                if (statusLower === 'completed' || statusLower === 'paid') {
+                    collected += price;
+                    if (job.updatedAt) {
+                        const dateRaw = new Date(job.updatedAt);
+                        if (!isNaN(dateRaw.getTime())) {
+                            const dateStr = dateRaw.toISOString().split('T')[0];
+                            chartDataMap.set(dateStr, (chartDataMap.get(dateStr) || 0) + price);
+                            activities.push({
+                                id: `drs-job-${dateRaw.getTime()}-${Math.random()}`, appName: 'DRS Auto Detailing', type: 'payment_collected',
+                                title: 'Job Completed', description: `Job "${jobTitle}" for ${clientName} - $${price} collected`, amount: price, date: dateRaw.toISOString()
+                            });
                         }
                     }
-                });
-            }
-            const { data: expData } = await drsSupabase.from('Expense').select('amount');
-            const expenses = expData ? expData.reduce((sum, e) => sum + (Number(e.amount) || 0), 0) : 0;
+                }
+            });
+
+            const expenses = expRes.rows.reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0);
 
             results.drs = {
-                name: 'DRS Auto Detailing', status: 'online', users: userCount || 0,
+                name: 'DRS Auto Detailing', status: 'online', users: Number(userRes.rows[0]?.count || 0),
                 financials: { billed, collected, pending: billed - collected, expenses, profit: collected - expenses },
                 chartData: Array.from(chartDataMap.entries()).map(([date, revenue]) => ({ date, revenue })).sort((a, b) => a.date.localeCompare(b.date)),
                 activityFeed: activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-                tasks: jobs ? jobs.length : 0
+                tasks: jobs.length
             };
-        } catch (e: any) {}
+        } catch (e: any) {
+            results.drs.status = 'error';
+            results.drs.errorMsg = String(e.message || e);
+        }
     }
 
     return results;
@@ -392,21 +399,83 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
     }
     if (turso) {
         try {
-            const res = await turso.execute("SELECT * FROM shoots");
-            res.rows.forEach(r => tasks.push({
-                id: `def-${r.id}`, appName: 'Defcon App', title: String(r.title || 'Untitled Shoot'),
-                status: String(r.status).toLowerCase().includes('done') ? 'done' : 'in_progress',
-                priority: 'high', date: new Date(String(r.date || Date.now())).toISOString()
-            }));
+            const res = await turso.execute(`
+                SELECT s.id, s.title, s.shoot_date, s.start_time, s.end_time, s.color, s.due_date,
+                       c.name as client_name, c.company_name as client_company
+                FROM shoots s
+                LEFT JOIN clients c ON s.client_id = c.id
+                ORDER BY s.shoot_date DESC
+            `);
+            res.rows.forEach(r => {
+                const shootDate = String(r.shoot_date || '');
+                const startTime = String(r.start_time || '');
+                const endTime = String(r.end_time || '');
+                const hasTime = !!(startTime && startTime !== 'null');
+                
+                let parsedDate: Date;
+                if (shootDate && hasTime) {
+                    parsedDate = new Date(`${shootDate}T${startTime}:00`);
+                } else if (shootDate) {
+                    parsedDate = new Date(shootDate);
+                } else {
+                    parsedDate = new Date();
+                }
+                if (isNaN(parsedDate.getTime())) parsedDate = new Date();
+
+                let parsedEnd: string | undefined;
+                if (shootDate && endTime && endTime !== 'null') {
+                    const endD = new Date(`${shootDate}T${endTime}:00`);
+                    if (!isNaN(endD.getTime())) parsedEnd = endD.toISOString();
+                }
+
+                const clientLabel = String(r.client_company || r.client_name || 'Client');
+
+                tasks.push({
+                    id: `def-${r.id}`, appName: 'Defcon App',
+                    title: String(r.title || 'Untitled Shoot'),
+                    status: 'in_progress',
+                    priority: 'high',
+                    date: parsedDate.toISOString(),
+                    endDate: parsedEnd,
+                    hasSpecificTime: hasTime,
+                    clientName: clientLabel
+                });
+            });
         } catch (e) {}
     }
-    if (drsSupabase) {
+    if (drsPool) {
         try {
-            const { data: jobs } = await drsSupabase.from('Job').select('*');
-            jobs?.forEach(j => tasks.push({
-                id: `drs-${j.id}`, appName: 'DRS Auto Detailing', title: j.title || 'Untitled Job',
-                status: j.status === 'COMPLETED' ? 'done' : 'in_progress', priority: 'medium', date: j.createdAt || new Date().toISOString()
-            }));
+            const { rows: jobs } = await drsPool.query(`
+                SELECT j.id, j.status, j."scheduledDate", j."durationMin", j."totalPrice", j."customServiceName", j."customServicePrice", j.notes,
+                       cp."firstName", cp."lastName",
+                       v.make as vehicle_make, v.model as vehicle_model
+                FROM "Job" j
+                LEFT JOIN "ClientProfile" cp ON j."clientId" = cp.id
+                LEFT JOIN "Vehicle" v ON j."vehicleId" = v.id
+                ORDER BY j."scheduledDate" DESC
+            `);
+            jobs.forEach((j: any) => {
+                const scheduledDate = new Date(j.scheduledDate);
+                if (isNaN(scheduledDate.getTime())) return;
+
+                const durationMs = (Number(j.durationMin) || 60) * 60 * 1000;
+                const endDate = new Date(scheduledDate.getTime() + durationMs);
+                const clientName = j.firstName ? `${j.firstName} ${j.lastName}` : 'Client';
+                const vehicleLabel = j.vehicle_make ? `${j.vehicle_make} ${j.vehicle_model}` : '';
+                const title = j.customServiceName || (vehicleLabel ? `Detailing — ${vehicleLabel}` : 'Detailing Job');
+
+                tasks.push({
+                    id: `drs-${j.id}`, appName: 'DRS Auto Detailing',
+                    title,
+                    status: j.status === 'COMPLETED' ? 'done' : (j.status === 'CANCELLED' ? 'done' : 'in_progress'),
+                    priority: 'medium',
+                    date: scheduledDate.toISOString(),
+                    endDate: endDate.toISOString(),
+                    hasSpecificTime: true,
+                    clientName,
+                    budget: (Number(j.totalPrice) || 0) + (Number(j.customServicePrice) || 0)
+                });
+            });
         } catch (e) {}
     }
     if (mongoClient) {
@@ -448,13 +517,18 @@ export async function fetchOmniCRM(): Promise<EmpireContact[]> {
         } catch (e) {}
     }
 
-    // 3. DRS (Supabase)
-    if (drsSupabase) {
+    // 3. DRS (PostgreSQL)
+    if (drsPool) {
         try {
-            const { data } = await drsSupabase.from('ClientProfile').select('id, firstName, lastName, user(email, phone), createdAt').limit(50);
-            data?.forEach((c: any) => contacts.push({
+            const { rows } = await drsPool.query(`
+                SELECT cp.id, cp."firstName", cp."lastName", u.email, u.phone, cp."userId"
+                FROM "ClientProfile" cp
+                LEFT JOIN "User" u ON cp."userId" = u.id
+                LIMIT 50
+            `);
+            rows.forEach((c: any) => contacts.push({
                 id: `drs-${c.id}`, appName: 'DRS Auto Detailing', name: `${c.firstName} ${c.lastName}`,
-                email: c.user?.email || '', phone: c.user?.phone || '', status: 'active', lifetimeValue: 0, metrics: 'N/A', lastActive: c.createdAt || new Date().toISOString()
+                email: c.email || '', phone: c.phone || '', status: 'active', lifetimeValue: 0, metrics: 'N/A', lastActive: new Date().toISOString()
             }));
         } catch (e) {}
     }
@@ -476,11 +550,11 @@ export async function fetchExpenseBreakdown(): Promise<ExpenseItem[]> {
         } catch (e) {}
     }
 
-    // 2. DRS (Supabase)
-    if (drsSupabase) {
+    // 2. DRS (PostgreSQL)
+    if (drsPool) {
         try {
-            const { data } = await drsSupabase.from('Expense').select('id, category, description, amount, createdAt').order('createdAt', { ascending: false }).limit(100);
-            data?.forEach(e => items.push({
+            const { rows } = await drsPool.query('SELECT id, category, description, amount, "createdAt" FROM "Expense" ORDER BY "createdAt" DESC LIMIT 100');
+            rows.forEach((e: any) => items.push({
                 id: `drs-exp-${e.id}`, appName: 'DRS Auto Detailing', category: e.category || 'Maintenance',
                 description: e.description || '', amount: Number(e.amount || 0), date: e.createdAt || new Date().toISOString()
             }));
@@ -515,15 +589,16 @@ export async function searchGlobal(query: string): Promise<SearchResult[]> {
         } catch (e) {}
     }
 
-    // 3. DRS (Supabase)
-    if (drsSupabase) {
+    // 3. DRS (PostgreSQL)
+    if (drsPool) {
         try {
+            const searchPattern = `%${query}%`;
             const [clientRes, jobRes] = await Promise.all([
-                drsSupabase.from('ClientProfile').select('id, firstName, lastName, email').or(`firstName.ilike.%${query}%,lastName.ilike.%${query}%,email.ilike.%${query}%`).limit(5),
-                drsSupabase.from('Job').select('id, title').ilike('title', `%${query}%`).limit(5)
+                drsPool.query(`SELECT id, "firstName", "lastName" FROM "ClientProfile" WHERE "firstName" ILIKE $1 OR "lastName" ILIKE $1 LIMIT 5`, [searchPattern]),
+                drsPool.query(`SELECT id, "customServiceName" FROM "Job" WHERE "customServiceName" ILIKE $1 OR notes ILIKE $1 LIMIT 5`, [searchPattern])
             ]);
-            clientRes.data?.forEach(c => results.push({ id: `drs-c-${c.id}`, appName: 'DRS Auto Detailing', type: 'client', title: `${c.firstName} ${c.lastName}`, subtitle: c.email }));
-            jobRes.data?.forEach(j => results.push({ id: `drs-j-${j.id}`, appName: 'DRS Auto Detailing', type: 'job', title: j.title || 'Untitled Job', subtitle: 'Detailing Job' }));
+            clientRes.rows.forEach((c: any) => results.push({ id: `drs-c-${c.id}`, appName: 'DRS Auto Detailing', type: 'client', title: `${c.firstName} ${c.lastName}`, subtitle: '' }));
+            jobRes.rows.forEach((j: any) => results.push({ id: `drs-j-${j.id}`, appName: 'DRS Auto Detailing', type: 'job', title: j.customServiceName || 'Detailing Job', subtitle: 'Detailing Job' }));
         } catch (e) {}
     }
 

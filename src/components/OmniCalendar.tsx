@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { OmniTask, AppActivity } from '@/lib/db-clients';
 import { 
     ChevronLeft, 
@@ -14,6 +14,8 @@ import {
     FileText,
     TrendingDown,
     Camera,
+    Car,
+    Wrench,
     Maximize2,
     Minimize2,
     X,
@@ -21,7 +23,9 @@ import {
     Tag,
     AlertCircle,
     Info,
-    CreditCard
+    CreditCard,
+    Plus,
+    Loader2
 } from 'lucide-react';
 import { 
     format, 
@@ -37,6 +41,7 @@ import { fr } from 'date-fns/locale';
 interface OmniCalendarProps {
     tasks: OmniTask[];
     activities?: AppActivity[];
+    onShootCreated?: () => void;
 }
 
 interface CalendarEvent {
@@ -45,19 +50,67 @@ interface CalendarEvent {
     date: Date;
     appName: string;
     kind: 'financial' | 'operational';
-    type: 'payment' | 'invoice' | 'expense' | 'shoot' | 'job' | 'travel' | 'design' | 'other';
+    type: 'payment' | 'invoice' | 'expense' | 'shoot' | 'job' | 'travel' | 'design' | 'detailing' | 'other';
     amount?: number;
+    clientName?: string;
     endDate?: Date;
     hasSpecificTime?: boolean;
     rawTask?: OmniTask;
     rawActivity?: AppActivity;
 }
 
-const HOUR_HEIGHT = 48; // Compactness requested by user (1 hour = 48 pixels)
+interface DefconClient {
+    id: number;
+    name: string;
+    company_name: string;
+}
 
-export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
+const HOUR_HEIGHT = 48;
+
+export function OmniCalendar({ tasks, activities = [], onShootCreated }: OmniCalendarProps) {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [showAddShoot, setShowAddShoot] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [defconClients, setDefconClients] = useState<DefconClient[]>([]);
+    const [shootForm, setShootForm] = useState({
+        title: '', date: format(new Date(), 'yyyy-MM-dd'), startTime: '09:00', endTime: '12:00',
+        clientId: '', color: 'amber'
+    });
+
+    // Load Defcon clients when modal opens
+    useEffect(() => {
+        if (showAddShoot && defconClients.length === 0) {
+            fetch('/api/shoots/clients').then(r => r.json()).then(d => {
+                if (d.clients) setDefconClients(d.clients);
+            }).catch(() => {});
+        }
+    }, [showAddShoot, defconClients.length]);
+
+    const handleCreateShoot = useCallback(async () => {
+        if (!shootForm.title || !shootForm.date) return;
+        setIsSubmitting(true);
+        try {
+            const res = await fetch('/api/shoots', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: shootForm.title,
+                    date: shootForm.date,
+                    startTime: shootForm.startTime,
+                    endTime: shootForm.endTime,
+                    clientId: shootForm.clientId ? Number(shootForm.clientId) : null,
+                    color: shootForm.color
+                })
+            });
+            if (res.ok) {
+                setShowAddShoot(false);
+                setShootForm({ title: '', date: format(new Date(), 'yyyy-MM-dd'), startTime: '09:00', endTime: '12:00', clientId: '', color: 'amber' });
+                onShootCreated?.();
+            }
+        } catch (e) { console.error(e); }
+        setIsSubmitting(false);
+    }, [shootForm, onShootCreated]);
 
     // Lock to a 7-day grid view (standard calendar)
     const startDate = startOfWeek(currentDate, { weekStartsOn: 1 }); 
@@ -90,6 +143,7 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
             if (t.appName.includes('Defcon')) type = 'shoot';
             if (t.appName.includes('Viva')) type = 'travel';
             if (t.appName.includes('Auclaire')) type = 'design';
+            if (t.appName.includes('DRS')) type = 'detailing';
 
             events.push({
                 id: `op-${t.id}`,
@@ -101,6 +155,7 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                 kind: 'operational',
                 type,
                 amount: t.budget,
+                clientName: t.clientName,
                 rawTask: t
             });
         });
@@ -138,6 +193,7 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
             if (event.type === 'expense') return { bg: 'bg-red-500/90', text: 'text-red-50', icon: <TrendingDown className="w-2.5 h-2.5" /> };
         } else {
             if (event.type === 'shoot') return { bg: 'bg-amber-500/20 border-l-amber-500 border border-amber-500/20 text-amber-100', icon: <Camera className="w-3 h-3 text-amber-400" /> };
+            if (event.type === 'detailing') return { bg: 'bg-orange-500/20 border-l-orange-500 border border-orange-500/20 text-orange-100', icon: <Car className="w-3 h-3 text-orange-400" /> };
             if (event.type === 'travel') return { bg: 'bg-purple-500/20 border-l-purple-500 border border-purple-500/20 text-purple-100', icon: <MapPin className="w-3 h-3 text-purple-400" /> };
             if (event.type === 'job') return { bg: 'bg-slate-500/20 border-l-slate-500 border border-slate-500/20 text-slate-100', icon: <Zap className="w-3 h-3 text-slate-400" /> };
             if (event.type === 'design') return { bg: 'bg-cyan-500/20 border-l-cyan-500 border border-cyan-500/20 text-cyan-100', icon: <Briefcase className="w-3 h-3 text-cyan-400" /> };
@@ -207,6 +263,13 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                         </div>
                         
                         <div className="flex items-center gap-3">
+                            <button 
+                                onClick={() => setShowAddShoot(true)}
+                                className="p-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 hover:text-amber-300 rounded-lg transition-colors border border-amber-500/30 shrink-0"
+                                title="Planifier un tournage Defcon"
+                            >
+                                <Plus className="w-4 h-4" />
+                            </button>
                             <button 
                                 onClick={today}
                                 className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 rounded-lg transition-colors border border-indigo-500/20 shrink-0"
@@ -357,6 +420,11 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                                                             <div className="hidden sm:block">
                                                                 {styles.icon}
                                                             </div>
+                                                            {event.clientName && (
+                                                                <span className="text-[7px] font-bold opacity-50 truncate hidden sm:inline">
+                                                                    {event.clientName}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <span className="text-[9px] sm:text-[10px] font-bold leading-tight line-clamp-2 pr-1 text-white">
                                                             {event.title}
@@ -371,6 +439,92 @@ export function OmniCalendar({ tasks, activities = [] }: OmniCalendarProps) {
                         </div>
                     </div>
                 </div>
+
+                {/* Add Shoot Modal */}
+                {showAddShoot && (
+                    <div className="absolute inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="w-full max-w-md bg-slate-900 border border-amber-500/30 rounded-2xl shadow-2xl p-6 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Camera className="w-5 h-5 text-amber-400" />
+                                    <h3 className="text-lg font-black text-white uppercase tracking-wide">Nouveau Tournage</h3>
+                                </div>
+                                <button onClick={() => setShowAddShoot(false)} className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 block">Titre du Shoot *</label>
+                                    <input
+                                        value={shootForm.title}
+                                        onChange={e => setShootForm(p => ({ ...p, title: e.target.value }))}
+                                        placeholder="Ex: Vidéo corporative XYZ"
+                                        className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 block">Date *</label>
+                                        <input
+                                            type="date"
+                                            value={shootForm.date}
+                                            onChange={e => setShootForm(p => ({ ...p, date: e.target.value }))}
+                                            className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-amber-500/50"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 block">Début</label>
+                                        <input
+                                            type="time"
+                                            value={shootForm.startTime}
+                                            onChange={e => setShootForm(p => ({ ...p, startTime: e.target.value }))}
+                                            className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-amber-500/50"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 block">Fin</label>
+                                        <input
+                                            type="time"
+                                            value={shootForm.endTime}
+                                            onChange={e => setShootForm(p => ({ ...p, endTime: e.target.value }))}
+                                            className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-amber-500/50"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 block">Client Defcon</label>
+                                    <select
+                                        value={shootForm.clientId}
+                                        onChange={e => setShootForm(p => ({ ...p, clientId: e.target.value }))}
+                                        className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-amber-500/50"
+                                    >
+                                        <option value="">— Sélectionner un client —</option>
+                                        {defconClients.map(c => (
+                                            <option key={c.id} value={c.id}>{c.company_name || c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <button
+                                    onClick={() => setShowAddShoot(false)}
+                                    className="flex-1 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 transition-colors"
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    onClick={handleCreateShoot}
+                                    disabled={isSubmitting || !shootForm.title || !shootForm.date}
+                                    className="flex-1 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-black bg-amber-500 hover:bg-amber-400 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                                    Créer le Shoot
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </>
     );

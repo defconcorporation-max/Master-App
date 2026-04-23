@@ -323,7 +323,11 @@ export function DashboardContainer({ data }: DashboardContainerProps) {
                             {opsView === 'board' ? (
                                 <OmniKanban tasks={filteredData.tasks} />
                             ) : (
-                                <OmniCalendar tasks={filteredData.tasks} activities={filteredData.allActivities} />
+                                <OmniCalendar 
+                                    tasks={filteredData.tasks} 
+                                    activities={filteredData.allActivities} 
+                                    onShootCreated={() => router.refresh()}
+                                />
                             )}
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
