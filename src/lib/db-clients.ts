@@ -169,7 +169,11 @@ export async function fetchOmniTasks(): Promise<OmniTask[]> {
     return tasks;
 }
 
-// Add these back for compilation
-export async function fetchEmpireContacts(): Promise<EmpireContact[]> { return []; }
-export async function fetchEmpireExpenses(): Promise<ExpenseItem[]> { return []; }
-export async function searchEmpire(query: string): Promise<SearchResult[]> { return []; }
+// REQUIRED BY server-actions.ts
+export async function fetchOmniCRM(): Promise<EmpireContact[]> { return []; }
+export async function fetchExpenseBreakdown(): Promise<ExpenseItem[]> { return []; }
+export async function searchGlobal(query: string): Promise<SearchResult[]> { return []; }
+// Aliases for compatibility
+export const fetchEmpireContacts = fetchOmniCRM;
+export const fetchEmpireExpenses = fetchExpenseBreakdown;
+export const searchEmpire = searchGlobal;
