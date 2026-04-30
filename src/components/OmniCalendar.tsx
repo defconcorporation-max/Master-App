@@ -273,6 +273,70 @@ export function OmniCalendar({ tasks, activities = [], onShootCreated }: OmniCal
         return Math.max(HOUR_HEIGHT, HOUR_HEIGHT * 1.5); // Default assumed duration 1.5 hours for operational events
     };
 
+    // Collision detection: place overlapping events side-by-side
+    const layoutEvents = (events: CalendarEvent[]) => {
+        if (events.length === 0) return [];
+
+        // Sort by start time, then by duration (longer first)
+        const sorted = [...events].sort((a, b) => {
+            const diff = a.date.getTime() - b.date.getTime();
+            if (diff !== 0) return diff;
+            const aDur = (a.endDate?.getTime() || (a.date.getTime() + 90 * 60000)) - a.date.getTime();
+            const bDur = (b.endDate?.getTime() || (b.date.getTime() + 90 * 60000)) - b.date.getTime();
+            return bDur - aDur; // longer events first
+        });
+
+        // For each event, compute its end time in pixels
+        const getEnd = (e: CalendarEvent) => {
+            const topPx = calculateTop(e.date);
+            const heightPx = calculateHeight(e);
+            return topPx + heightPx;
+        };
+
+        // Assign columns using a greedy algorithm
+        const columns: { endPx: number }[][] = [];
+        const result: { event: CalendarEvent; col: number; totalCols: number }[] = [];
+
+        sorted.forEach(event => {
+            const topPx = calculateTop(event.date);
+            let placed = false;
+
+            for (let c = 0; c < columns.length; c++) {
+                // Check if this column has space (no overlap with last event in this column)
+                const lastInCol = columns[c][columns[c].length - 1];
+                if (topPx >= lastInCol.endPx - 1) { // -1px tolerance
+                    columns[c].push({ endPx: getEnd(event) });
+                    result.push({ event, col: c, totalCols: 0 }); // totalCols computed later
+                    placed = true;
+                    break;
+                }
+            }
+
+            if (!placed) {
+                columns.push([{ endPx: getEnd(event) }]);
+                result.push({ event, col: columns.length - 1, totalCols: 0 });
+            }
+        });
+
+        // Now compute totalCols for each group of overlapping events
+        // Simple approach: for each event, find how many columns overlap with it
+        result.forEach(r => {
+            const topPx = calculateTop(r.event.date);
+            const bottomPx = getEnd(r.event);
+            let maxCol = r.col;
+            result.forEach(other => {
+                const otherTop = calculateTop(other.event.date);
+                const otherBottom = getEnd(other.event);
+                if (otherTop < bottomPx && otherBottom > topPx) {
+                    maxCol = Math.max(maxCol, other.col);
+                }
+            });
+            r.totalCols = maxCol + 1;
+        });
+
+        return result;
+    };
+
     return (
         <>
             <div className={wrapperClasses}>
@@ -436,28 +500,36 @@ export function OmniCalendar({ tasks, activities = [], onShootCreated }: OmniCal
                                             {hours.map(h => (
                                                 <div key={h} className="absolute w-full border-b border-white/[0.03]" style={{ top: h * HOUR_HEIGHT, height: HOUR_HEIGHT }} />
                                             ))}
-                                            {timedEvents.map((event, idx) => {
+                                            {layoutEvents(timedEvents).map(({ event, col, totalCols }, idx) => {
                                                 const styles = getEventStyles(event);
                                                 const topOffset = calculateTop(new Date(event.date));
                                                 const isFinancial = event.kind === 'financial';
+                                                const widthPct = 100 / totalCols;
+                                                const leftPct = col * widthPct;
                                                 return (
                                                     <div
                                                         key={`${event.id}-${idx}`}
                                                         title={event.title}
                                                         onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: event.rawTask || event.rawActivity }))}
-                                                        className={`absolute left-2 right-2 sm:left-4 sm:right-4 rounded-md ${isFinancial ? '' : 'border-l-[3px]'} ${styles.bg} p-2 overflow-hidden cursor-pointer hover:brightness-125 transition-all z-10 shadow-sm`}
-                                                        style={{ top: topOffset, height: calculateHeight(event), minHeight: isFinancial ? 20 : HOUR_HEIGHT }}
+                                                        className={`absolute rounded-md ${isFinancial ? '' : 'border-l-[3px]'} ${styles.bg} p-1.5 sm:p-2 overflow-hidden cursor-pointer hover:brightness-125 transition-all z-10 shadow-sm`}
+                                                        style={{ 
+                                                            top: topOffset, 
+                                                            height: calculateHeight(event), 
+                                                            minHeight: isFinancial ? 20 : HOUR_HEIGHT,
+                                                            left: `calc(${leftPct}% + 2px)`,
+                                                            width: `calc(${widthPct}% - 4px)`
+                                                        }}
                                                     >
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5">
                                                             {styles.icon}
-                                                            <span className="text-[10px] font-black font-mono opacity-70">
+                                                            <span className="text-[9px] sm:text-[10px] font-black font-mono opacity-70">
                                                                 {event.hasSpecificTime ? format(event.date, 'HH:mm') : ''}
                                                                 {event.endDate && event.hasSpecificTime ? ` — ${format(event.endDate, 'HH:mm')}` : ''}
                                                             </span>
                                                         </div>
-                                                        <span className="text-xs font-bold leading-tight line-clamp-2 text-white mt-0.5">{event.title}</span>
-                                                        {event.clientName && <span className="text-[10px] opacity-50 truncate">{event.clientName}</span>}
-                                                        {isFinancial && event.amount && <span className="text-[10px] font-bold text-emerald-300">${event.amount.toLocaleString()}</span>}
+                                                        <span className="text-[10px] sm:text-xs font-bold leading-tight line-clamp-2 text-white mt-0.5">{event.title}</span>
+                                                        {event.clientName && <span className="text-[9px] sm:text-[10px] opacity-50 truncate block">{event.clientName}</span>}
+                                                        {isFinancial && event.amount && <span className="text-[9px] font-bold text-emerald-300">${event.amount.toLocaleString()}</span>}
                                                     </div>
                                                 );
                                             })}
@@ -542,16 +614,18 @@ export function OmniCalendar({ tasks, activities = [], onShootCreated }: OmniCal
                                             const timedEvents = fetchDayEvents(day).filter(e => e.hasSpecificTime || e.kind === 'financial');
                                             return (
                                                 <div key={`col-${day.toString()}`} className="relative border-r border-white/5 last:border-r-0" style={{ height: 24 * HOUR_HEIGHT }}>
-                                                    {timedEvents.map((event, idx) => {
+                                                    {layoutEvents(timedEvents).map(({ event, col, totalCols }, idx) => {
                                                         const styles = getEventStyles(event);
                                                         const topOffset = calculateTop(new Date(event.date));
                                                         const isFinancial = event.kind === 'financial';
+                                                        const widthPct = 100 / totalCols;
+                                                        const leftPct = col * widthPct;
                                                         if (isFinancial) {
                                                             return (
                                                                 <div key={`${event.id}-${idx}`} title={`${event.title} - $${event.amount}`}
                                                                     onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: event.rawTask || event.rawActivity }))}
-                                                                    className={`absolute left-1 right-1 rounded ${styles.bg} shadow-md flex items-center gap-1 px-1 overflow-hidden cursor-pointer hover:scale-105 transition-transform z-20`}
-                                                                    style={{ top: topOffset, height: calculateHeight(event) }}
+                                                                    className={`absolute rounded ${styles.bg} shadow-md flex items-center gap-1 px-1 overflow-hidden cursor-pointer hover:scale-105 transition-transform z-20`}
+                                                                    style={{ top: topOffset, height: calculateHeight(event), left: `calc(${leftPct}% + 1px)`, width: `calc(${widthPct}% - 2px)` }}
                                                                 >
                                                                     {styles.icon}
                                                                     <span className={`text-[8px] font-black uppercase truncate ${styles.text}`}>
@@ -563,15 +637,14 @@ export function OmniCalendar({ tasks, activities = [], onShootCreated }: OmniCal
                                                         return (
                                                             <div key={`${event.id}-${idx}`} title={event.title}
                                                                 onClick={() => window.dispatchEvent(new CustomEvent('entity-selected', { detail: event.rawTask || event.rawActivity }))}
-                                                                className={`absolute left-1 right-1 rounded-md border-l-[3px] ${styles.bg} p-1 flex flex-col gap-0.5 overflow-hidden cursor-pointer hover:brightness-125 hover:z-30 transition-all z-10 shadow-sm`}
-                                                                style={{ top: topOffset, height: calculateHeight(event), minHeight: HOUR_HEIGHT }}
+                                                                className={`absolute rounded-md border-l-[3px] ${styles.bg} p-1 flex flex-col gap-0.5 overflow-hidden cursor-pointer hover:brightness-125 hover:z-30 transition-all z-10 shadow-sm`}
+                                                                style={{ top: topOffset, height: calculateHeight(event), minHeight: HOUR_HEIGHT, left: `calc(${leftPct}% + 1px)`, width: `calc(${widthPct}% - 2px)` }}
                                                             >
                                                                 <div className="flex items-center gap-1">
                                                                     <span className="text-[8px] font-black font-mono tracking-tighter opacity-70">
                                                                         {event.hasSpecificTime ? format(event.date, 'HH:mm') : ''}
                                                                     </span>
                                                                     {styles.icon}
-                                                                    {event.clientName && <span className="text-[7px] font-bold opacity-50 truncate">{event.clientName}</span>}
                                                                 </div>
                                                                 <span className="text-[9px] font-bold leading-tight line-clamp-2 text-white">{event.title}</span>
                                                             </div>

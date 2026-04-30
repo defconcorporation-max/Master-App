@@ -49,3 +49,18 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
+export async function DELETE(request: Request) {
+    if (!turso) return NextResponse.json({ error: 'Defcon database not connected' }, { status: 503 });
+
+    try {
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+        if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+
+        await turso.execute({ sql: 'DELETE FROM shoots WHERE id = ?', args: [Number(id)] });
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
